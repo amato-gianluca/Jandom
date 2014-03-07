@@ -41,4 +41,6 @@ class SootObjectModel(cra: SootClassReachableAnalysis) extends ObjectModel {
    }
 
    def typeOf(f: Field) = f.getType()
+
+   def lt(t1: Type, t2: Type) = ???
 }

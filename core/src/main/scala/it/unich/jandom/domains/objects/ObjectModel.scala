@@ -46,4 +46,12 @@ trait ObjectModel {
   def fieldsOf(t: Type): Seq[Field]
 
   def typeOf(f: Field): Type
+
+  def lt(t1: Type, t2: Type): Boolean
+
+  def min(t1: Type, t2: Type) =
+    if (lt(t1, t2)) t1
+    else if (lt(t2, t1)) t2
+    else if (t1 == t2) t1
+    else throw new IllegalArgumentException("The min method of ObjectModel only accepts comparable types")
 }

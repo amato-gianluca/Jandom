@@ -76,9 +76,10 @@ trait ObjectDomain[OM <: ObjectModel] extends CartesianFiberedDomain {
     def assignFieldToVariable(dst: Int, src: Int, field: om.Field): P
 
     /**
-     * Returns true if variable `v` is definitively null
+     * Returns true if the location obtained by v following fields in fieldseq is definitively
+     * null. If some intermediate value is definitively null, it returns true.
      */
-    def isNull(v: Int): Boolean
+    def isDefiniteNull(v: Int, fieldseq: Seq[om.Field] = Seq()): Boolean
 
     /**
      * Returns the property after the successful completion of the test `v == null`
