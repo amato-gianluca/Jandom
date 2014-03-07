@@ -22,7 +22,7 @@ import soot.Scene
 import it.unich.jandom.targets.jvmsoot.BafMethod
 import it.unich.jandom.domains.numerical.NumericalDomain
 import it.unich.jandom.domains.objects.ObjectDomain
-import it.unich.jandom.targets.jvmsoot.ClassReachableAnalysis
+import it.unich.jandom.targets.jvmsoot.SootClassReachableAnalysis
 import it.unich.jandom.targets.jvmsoot.SootFrameDomain
 import it.unich.jandom.targets.jvmsoot.SootFrameNumericalDomain
 import it.unich.jandom.targets.jvmsoot.SootFrameObjectDomain
@@ -59,6 +59,9 @@ import it.unich.jandom.targets.jvmasm.UnsupportedASMInsnException
 import it.unich.jandom.parsers.RandomParser
 import java.io.IOException
 import it.unich.jandom.targets.slil.SLILTarget
+import it.unich.jandom.domains.objects.ObjectModel
+import it.unich.jandom.targets.jvmsoot.SootObjectModel
+import it.unich.jandom.domains.objects.ObjectDomainFactory
 
 /**
  * An output interface is a collection of methods for implementing an external interface.
@@ -134,15 +137,16 @@ def getAnalysisTypeTip = "Choose between an analysis of numerical properties or 
    	 params
  }
 
-  private def analyze[T<:SootCFG[T, Block]](method: SootCFG[T, Block], domain: DimensionFiberedDomain, wideningIndex: Int,
+  private def analyze[T<:SootCFG[T, Block]](method: SootCFG[T, Block], domain: Any, wideningIndex: Int,
 		  	   narrowingIndex: Int, delay:Int, debug: Boolean):String =  {
       try {
         val sootScene = Scene.v()
         sootScene.loadBasicClasses()
-        val klassAnalysis = new ClassReachableAnalysis(sootScene)
+        val klassAnalysis = new SootClassReachableAnalysis(sootScene)
+        val om = new SootObjectModel(klassAnalysis)
   	    val sootDomain:SootFrameDomain = domain match {
   	  		case domain:NumericalDomain => new SootFrameNumericalDomain(domain)
-  	  		case domain:ObjectDomain    => new SootFrameObjectDomain(domain,klassAnalysis)
+  	  		case domain:ObjectDomainFactory => new SootFrameObjectDomain(domain(om))
         }
         val tMethod = method.asInstanceOf[T]
         val params = setParameters[T](tMethod, sootDomain, wideningIndex, narrowingIndex, delay, debug)
@@ -282,8 +286,8 @@ def getAnalysisTypeTip = "Choose between an analysis of numerical properties or 
     try {
       val program = getRandomText(dir, file)
       val parser = RandomParser()
-    
-      val numericalDomain = NumericalDomains.values(domain).value 
+
+      val numericalDomain = NumericalDomains.values(domain).value
        val result = parser.parseProgram(program) match {
      case parser.Success(program, _) =>
         val params = new Parameters[SLILTarget] { val domain = numericalDomain }
@@ -297,7 +301,7 @@ def getAnalysisTypeTip = "Choose between an analysis of numerical properties or 
       result
     }
     catch {
-     case e: IOException => "I/O error" 
+     case e: IOException => "I/O error"
     }
   }
 }

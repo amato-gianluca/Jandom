@@ -18,35 +18,42 @@
 
 package it.unich.jandom.domains.objects
 
-import it.unich.jandom.domains.DimensionFiberedDomain
-import it.unich.jandom.domains.DimensionFiberedProperty
-import it.unich.jandom.domains.TypedDomain
-import it.unich.jandom.domains.AbstractTypeEnvironment
-import it.unich.jandom.domains.AbstractTypeEnvironment
+import it.unich.jandom.domains.CartesianFiberedDomain
+import it.unich.jandom.domains.CartesianFiberedProperty
 
 /**
  * This trait represents the interface for a domain which handles objects and their relationship.
  * May be used, for example, for sharing analysis. This is only a draft, and will be probably improved
- * along the development of Jandom. Also, the concrete domain should be better understood.
+ * along the development of Jandom.
+ * @tparam OM the particular type of object model related to the object domain
  * @author Gianluca Amato <gamato@unich.it>
  *
  */
-trait ObjectDomain extends DimensionFiberedDomain with TypedDomain {
+trait ObjectDomain[OM <: ObjectModel] extends CartesianFiberedDomain {
+
+  /**
+   * The object model of this domain
+   */
+  val om: OM
 
   type Property <: ObjectProperty[Property]
 
-  type TypeEnvironment = ObjectTypeEnvironment
+  /**
+   * The type of the fiber components is `om.Type`.
+   */
+  type FiberComponent = om.Type
 
   /**
    * This trait is the interface for abstract elements in the object domain.
    */
-  trait ObjectProperty[P <: ObjectProperty[P]] extends DimensionFiberedProperty[P] with TypedProperty[P] {
+  trait ObjectProperty[P <: ObjectProperty[P]] extends CartesianFiberedProperty[om.Type, P]  {
     this: P =>
 
     /**
      * Add a new non-null variable which does not share with any other variable.
+     * @param t the type of the new variable
      */
-    def addFreshVariable: P
+    def addFreshVariable(t: om.Type): P
 
     /**
      * Assign the null object to variable `dst`.
@@ -61,17 +68,12 @@ trait ObjectDomain extends DimensionFiberedDomain with TypedDomain {
     /**
      * Corresponds to the assignment `dst.field = src`.
      */
-    def assignVariableToField(dst: Int, field: Int, src: Int): P
+    def assignVariableToField(dst: Int, field: om.Field, src: Int): P
 
     /**
      * Corresponds to the assignment `dst = src.field`.
      */
-    def assignFieldToVariable(dst: Int, src: Int, field: Int)(implicit te: TypeEnvironment): P
-
-    /**
-     * Refine property according to the information provided by the ShareFilter.
-     */
-    def filter(te: TypeEnvironment): P
+    def assignFieldToVariable(dst: Int, src: Int, field: om.Field): P
 
     /**
      * Returns true if variable `v` is definitively null

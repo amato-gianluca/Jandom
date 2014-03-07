@@ -23,19 +23,27 @@ import org.scalatest.FunSuite
 
 /**
  * A test suite for PairSharing domain.
- * @author Gianluca Amato <gamato@unich.it>
+ * @author Gianluca Amato <gamato@unich.it> 
  *
  */
 class PairSharingSuite extends FunSuite {
+  import scala.language.implicitConversions
+
   val size = 3
-  val dom = PairSharingDomain
 
   def pairs(vars: Seq[Int]) = for (i <- vars; j <- vars) yield UP(i, j)
 
-  implicit class TrivialPairSharingEnvironment(val numvars: Int) extends ObjectTypeEnvironment {
-    def mayShare(i: Int, j: Int) = true
-    def mayNonLinear(i: Int) = true
+  object TrivialObjectModel extends ObjectModel {
+    type Type = Unit
+    type Field = Int
+    def mayShare(src: Type, tgt: Type) = true
+    def fieldsOf(t: Type) = Seq()
+    def typeOf(f: Field) =  {}
   }
+
+  val dom = PairSharingDomain(TrivialObjectModel)
+
+  implicit def sizeToTypes(size: Int) = Seq.fill(size)(())
 
   test("Bottom element") {
     assert(dom(Set(), size) === dom.bottom(size))
@@ -52,11 +60,11 @@ class PairSharingSuite extends FunSuite {
 
   test("Operations on variables") {
     val ps1 = dom.bottom(3)
-    val ps2 = ps1.addFreshVariable
+    val ps2 = ps1.addFreshVariable(())
     assert(ps2 === dom(Set(UP(3, 3)), 4))
     val ps3 = ps2.assignNull()
     assert(ps3 === dom(Set(), 4))
-    val ps4 = ps3.addFreshVariable.assignVariable(0, 4)
+    val ps4 = ps3.addFreshVariable(()).assignVariable(0, 4)
     assert(ps4 === dom(Set(UP(4, 4), UP(4, 0), UP(0, 0)), 5))
     val ps5 = ps4.delVariable()
     assert(ps5 === dom(Set(UP(0, 0)), 4))
@@ -75,7 +83,7 @@ class PairSharingSuite extends FunSuite {
     val ps4 = dom(Set(UP(0, 0), UP(0, 1), UP(1, 1), UP(2, 2)), 4)
     val ps5 = ps4.assignVariableToField(0, 1, ps4.dimension - 1).delVariable()
     assert(ps5 == dom(Set(UP(0, 0), UP(0, 1), UP(1, 1), UP(2, 2)), 3))
-    assert(ps4.addFreshVariable.assignFieldToVariable(3, 2, 1)(5) == ps4.addFreshVariable.assignVariable(3, 2))
+    assert(ps4.addFreshVariable(()).assignFieldToVariable(3, 2, 1) == ps4.addFreshVariable(()).assignVariable(3, 2))
   }
 
   test("Delete last variables") {

@@ -19,10 +19,10 @@
 package it.unich.jandom.domains
 
 /**
- * A type environment is a description of the environment where an abstract property
- * lives. A typed abstract property only has meanings relatively to a type
- * environment. This is just a marker trait which is the ancestor of all
- * type environments.
+ * A domain factory is a class which is able to build a domain. For each domain of a given
+ * family (i.e., domains which takes the same parameters) we have a different subclass of
+ * AbstractDomainFactory. When when need to pass a domain but we do not know the parameters,
+ * we pass the domain factory instead. This is just a marker trait.
  * @author Gianluca Amato <gamato@unich.it>
  */
-trait AbstractTypeEnvironment
+trait AbstractDomainFactory

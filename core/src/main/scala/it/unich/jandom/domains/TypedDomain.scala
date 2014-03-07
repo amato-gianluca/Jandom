@@ -19,14 +19,18 @@
 package it.unich.jandom.domains
 
 /**
- * A typed domain depends from a type environment.
+ * A typed domain is a domain whose properties are meaningful only in the context
+ * of a type environment. They are similar to fibered domain, but updating the type
+ * environment is not the duty of the domain. Instead, the type environment is updating
+ * externally, and changes are communicated to the property. It may be used when
+ * different analysis use the same type environment, so that we do not keep a different
+ * copy of it in each domain. For the moment it is not used.
  * @author Gianluca Amato <gamato@unich.it>
- *
  */
 trait TypedDomain extends AbstractDomain {
 
   /**
-   * The real type environment connected to this abstract domain
+   * The type environment connected to this abstract domain
    */
   type TypeEnvironment <: AbstractTypeEnvironment
 
@@ -36,27 +40,25 @@ trait TypedDomain extends AbstractDomain {
   type Property <: TypedProperty[Property]
 
   /**
-   * Returns the top element of the given type environment.
+   * Returns the top element on the given type environment.
    */
   def top(te: TypeEnvironment): Property
 
   /**
-   * Returns the bottom element of the given type environment.
+   * Returns the bottom element on the given type environment.
    */
   def bottom(te: TypeEnvironment): Property
 
   /**
-   * The property corresponding to a type domain has a filter method which improves
-   * the abstraction using information from the type environment.
+   * The property corresponding to a typed domain. The specification is not finished. An
+   * important point that should be cleared is whether the type environment is pointed by
+   * the property or not. In the last case, it should be passed as a parameter at every
+   * call.
    * @author Gianluca Amato <gamato@unich.it>
    *
    */
   trait TypedProperty[Property <: TypedProperty[Property]] <: AbstractProperty[Property] {
 
-    /**
-     * Returns a more precise property, according to the information in the type environment.
-     */
-    def filter(te: TypeEnvironment): Property
   }
 }
 

@@ -16,28 +16,29 @@
  * along with JANDOM.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package it.unich.jandom.domains.objects
+package it.unich.jandom.targets.jvmsoot
 
-import it.unich.jandom.domains.AbstractTypeEnvironment
+import it.unich.jandom.domains.objects.ObjectModel
 
 /**
- * This is a type environment which describes all the information about
- * pair sharing which is discoverable just by type checking.
  * @author Gianluca Amato <gamato@unich.it>
+ *
  */
-trait ObjectTypeEnvironment <: AbstractTypeEnvironment {
-  /**
-   * Number of variables in the environment
-   */
-  def numvars: Int
+class SootObjectModel(cra: SootClassReachableAnalysis) extends ObjectModel {
+   import scala.collection.JavaConversions._
 
-  /**
-   * The result is `true` if `i` and `j` may share due to type checking.
-   */
-  def mayShare(i: Int, j: Int): Boolean
+   type Type = soot.Type
+   type Field = soot.SootField
+   def mayShare(i: Type, j: Type) =
+     (i,j) match {
+        case (p1: soot.RefType, p2: soot.RefType) => cra.mayShare(p1.getSootClass(), p2.getSootClass())
+        case _ => false
+   }
 
-  /**
-   * This returns true if variable `v` may be non-linear
-   */
-  def mayNonLinear(v: Int): Boolean
+   def fieldsOf(i: Type) = i match {
+     case i: soot.RefType => i.getSootClass().getFields().toSeq
+     case _ => Seq()
+   }
+
+   def typeOf(f: Field) = f.getType()
 }

@@ -29,7 +29,7 @@ import soot._
  * @author Gianluca Amato <gamato@unich.it>
  *
  */
-class ClassReachableAnalysis(scene: Scene) {
+class SootClassReachableAnalysis(scene: Scene) {
   import scala.collection.JavaConversions._
 
   implicit object SootClassOrdering extends Ordering[SootClass] {
