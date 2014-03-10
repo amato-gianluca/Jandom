@@ -21,13 +21,11 @@ package it.unich.jandom.targets.jvmsoot
 import scala.annotation.elidable
 import scala.annotation.elidable._
 
-import it.unich.jandom.domains.objects.PairSharingDomain
-import it.unich.jandom.domains.objects.UP
+import it.unich.jandom.domains.objects.ObjectDomain
 import it.unich.jandom.targets.NumericCondition
+
 import soot._
 import soot.jimple.Constant
-import soot.jimple.StaticFieldRef
-import it.unich.jandom.domains.objects.ObjectDomain
 
 /**
  * An abstract frame for analysis of object properties. It depends on an analysis of class reachability

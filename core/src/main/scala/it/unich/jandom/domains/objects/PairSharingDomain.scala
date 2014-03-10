@@ -28,9 +28,9 @@ import it.unich.jandom.targets.jvmsoot.SootClassReachableAnalysis
  */
 class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
-  def top(types: Seq[om.Type]) = allPairs (0 until types.size, types)
+  def top(types: Seq[om.Type]) = allPairs(0 until types.size, types)
 
-  def bottom(types: Seq[om.Type]) = Property(Set(), types)
+  def bottom(types: Seq[om.Type]) = apply(Set(), types)
 
   /**
    * Builds a pair sharing object from a set of pairs and a sequence of types.
@@ -45,8 +45,8 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
    * @param types a sequence of types for the variables in ps
    */
   def allPairs(vars: Seq[Int], types: Seq[om.Type]) = {
-    val pairs = for (i <-  0 until vars.size; j <- 0 until vars.size; if om.mayShare(types(i),types(j))) yield UP(vars(i),vars(j))
-    new Property(pairs.toSet, types)
+    val pairs = for (i <- 0 until vars.size; j <- 0 until vars.size; if om.mayShare(types(i), types(j))) yield UP(vars(i), vars(j))
+    apply(pairs.toSet, types)
   }
 
   /**
@@ -76,7 +76,7 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
    * @param rtypes the sequence of types for the variable in ps, with the reverse ordering. `rtypes(0)` is
    * actually the type of the variables `rtypes.size - 1`. This is done for speeding execution.
    */
-  case class Property(ps: Set[UP[Int]], rtypes: Seq[om.Type]) extends ObjectProperty[Property] {
+  case class Property private[PairSharingDomain] (val ps: Set[UP[Int]], val rtypes: Seq[om.Type]) extends ObjectProperty[Property] {
 
     type Domain = PairSharingDomain.this.type
 
@@ -121,7 +121,6 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
       else
         new Property(removeVariable(ps, v) map { _.replace { x => if (x < v) x else x - 1 } }, (rtypes take (dimension - 1 - v)) ++ (rtypes drop (dimension - v)))
 
-
     def mapVariables(rho: Seq[Int]) = {
       val ps2 = for (UP(l, r) <- ps; if rho(l) != -1; if rho(r) != -1) yield UP(rho(l), rho(r))
       val rtypes2 = for { i <- rho; if i != -1 } yield rtypes(i)
@@ -147,7 +146,7 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
       // since it cannot be forced to be null due to call-by-value semantics, it had
       // to be null before.
       val trimmedThis = this.ps filter {
-        case UP(l, r) => l < firstCommonInThis && (r < firstCommonInThis || !that.isNull(r-firstCommonInThis))
+        case UP(l, r) => l < firstCommonInThis && (r < firstCommonInThis || !that.isNull(r - firstCommonInThis))
       }
       // join one ps of this with one ps of that
       val j1 = for {
@@ -158,7 +157,7 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
       } yield UP(l, r1)
       // join two ps of this
       val j2 = for (UP(l, r) <- trimmedThis; if r >= firstCommonInThis; UP(l1, r1) <- j1; if r == r1) yield UP(l, l1)
-      Property(trimmedThis ++ j1 ++ j2 ++ trimmedTranslatedThat, that.rtypes ++ rtypes.drop(common))
+      new Property(trimmedThis ++ j1 ++ j2 ++ trimmedTranslatedThat, that.rtypes ++ rtypes.drop(common))
     }
 
     def connect(that: Property, common: Int) = {
@@ -166,7 +165,7 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
     }
 
     def addFreshVariable(t: om.Type) =
-      if (om.mayShare(t,t)) new Property(ps + UP((dimension, dimension)), t +: rtypes) else new Property(ps, t +: rtypes)
+      if (om.mayShare(t, t)) new Property(ps + UP((dimension, dimension)), t +: rtypes) else new Property(ps, t +: rtypes)
 
     def assignNull(dst: Int = dimension - 1) = new Property(removeVariable(ps, dst), rtypes)
 
@@ -183,7 +182,7 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
         bottom
       else {
         val removed = removeVariable(ps, dst)
-        val renamed = renameVariable(removed, dst, src) filter { case UP(i,j) => om.mayShare(rtypes(dimension - 1 - i), rtypes(dimension - 1 -j)) }
+        val renamed = renameVariable(removed, dst, src) filter { case UP(i, j) => om.mayShare(rtypes(dimension - 1 - i), rtypes(dimension - 1 - j)) }
         new Property(removed ++ renamed + UP(dst, src), rtypes)
       }
     }
@@ -202,7 +201,7 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
 
     def mkString(vars: Seq[String]) = {
       val pairs = ps map { case UP(l, r) => s"(${vars(l)}, ${vars(r)})" }
-      s"${pairs.mkString("[ ",", ", " ]")} types ${rtypes.reverse.mkString("< ",", "," >")}"
+      s"${pairs.mkString("[ ", ", ", " ]")} types ${rtypes.reverse.mkString("< ", ", ", " >")}"
     }
 
     override def toString = mkString(for (i <- 0 until dimension) yield i.toString)
@@ -210,7 +209,7 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
     def tryCompareTo[B >: Property](other: B)(implicit arg0: (B) => PartiallyOrdered[B]): Option[Int] =
       other match {
         case other: Property =>
-          if (dimension == other.dimension) {
+          if (rtypes == other.rtypes) {
             if (other.ps == ps)
               Some(0)
             else if (ps subsetOf other.ps)
