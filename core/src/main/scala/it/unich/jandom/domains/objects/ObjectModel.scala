@@ -43,7 +43,7 @@ trait ObjectModel {
 
   def mayShare(src: Type, tgt: Type): Boolean
 
-  def fieldsOf(t: Type): Seq[Field]
+  def fieldsOf(t: Type): Set[Field]
 
   def typeOf(f: Field): Type
 

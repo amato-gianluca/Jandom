@@ -114,6 +114,8 @@ class SootFrameObjectDomain(val dom: ObjectDomain[SootObjectModel]) extends Soot
       else
         addUntrackedVariable(tpe)
 
+    def evalCast(t: soot.Type) = Property(this.prop.castVariable(size - 1, t), t :: stack.tail, globals) 
+
     def evalLocal(v: Int) =
       Property(prop.addFreshVariable(IntType.v()).assignVariable(size, v), stack(size - 1 - v) :: stack, globals)
 

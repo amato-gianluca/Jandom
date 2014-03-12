@@ -36,8 +36,8 @@ class SootObjectModel(cra: SootClassReachableAnalysis) extends ObjectModel {
    }
 
    def fieldsOf(i: Type) = i match {
-     case i: soot.RefType => i.getSootClass().getFields().toSeq
-     case _ => Seq()
+     case i: soot.RefType => i.getSootClass().getFields().toSet
+     case _ => Set()
    }
 
    def typeOf(f: Field) = f.getType()

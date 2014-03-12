@@ -61,20 +61,27 @@ trait ObjectDomain[OM <: ObjectModel] extends CartesianFiberedDomain {
     def assignNull(dst: Int = dimension - 1): P
 
     /**
-     * Corresponds to the assignment `dst = src`.
+     * Corresponds to the assignment `dst = src`. We assume dst is a subtype
+     * of src
      */
     def assignVariable(dst: Int, src: Int): P
 
     /**
-     * Corresponds to the assignment `dst.field = src`.
+     * Corresponds to the assignment `dst.field = src`. We assume dst.field is a subtype
+     * of src
      */
     def assignVariableToField(dst: Int, field: om.Field, src: Int): P
 
     /**
-     * Corresponds to the assignment `dst = src.field`.
+     * Corresponds to the assignment `dst = src.field`. We assume dst is a subtype of src
      */
     def assignFieldToVariable(dst: Int, src: Int, field: om.Field): P
 
+    /**
+     * Change the type of variable i-th. We assume the new type is comparable with the old one. 
+     */
+    def castVariable(v: Int, newtype: om.Type): Property 
+    
     /**
      * Returns true if the location obtained by v following fields in fieldseq is definitively
      * null. If some intermediate value is definitively null, it returns true.

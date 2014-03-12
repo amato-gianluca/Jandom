@@ -103,6 +103,12 @@ trait SootFrameDomain extends CartesianFiberedDomain {
     def evalField(i: Int = dimension - 1, f: soot.SootField): P
 
     /**
+     * Cast the top element of the frame to the new type
+     * @param t the new type
+     */
+    def evalCast(t: soot.Type): Property
+    
+    /**
      * Sums the two top element of the frame and replace them with the result
      */
     def evalAdd: P

@@ -18,7 +18,7 @@
 
 package it.unich.jandom.domains.objects
 
-import scala.util.control.Breaks
+import scala.collection.breakOut
 
 /**
  * The domain for the ALPs domain.0
@@ -27,14 +27,26 @@ import scala.util.control.Breaks
 class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
   def top(types: Seq[om.Type]) = {
-    val labels = for { t <- types } yield if (om.mayShare(t, t)) Some(new Node(Some(t))) else None
-    for { (t, Some(n)) <- types zip labels; f <- om.fieldsOf(t); tf = om.typeOf(f); if om.mayShare(tf, tf) } n.edges += f -> new Node()
-    new Property(types, labels)
+    val labels = for { t <- types } yield if (om.mayShare(t, t)) Some(new Node) else None
+    val edges = (for { (t, Some(n)) <- types zip labels } yield {
+      val outspan = for { f <- om.fieldsOf(t); tf = om.typeOf(f); if om.mayShare(tf, tf) } yield f -> new Node()
+      n -> outspan.toMap
+    })
+    new Property(labels, edges.toMap.withDefaultValue(Map.empty), types)
   }
 
-  def bottom(types: Seq[om.Type]) = new Property(types, Seq.fill(types.size)(None))
+  def bottom(types: Seq[om.Type]) = new Property(Seq.fill(types.size)(None), Map().withDefaultValue(Map.empty), types)
 
-  def apply(types: Seq[om.Type], labels: Seq[Option[Node]]) = new Property(types, labels)
+  def apply(labels: Seq[Option[Node]], edges: Map[Node, Map[om.Field, Node]], types: Seq[om.Type]): Property =
+    new Property(labels, edges.withDefaultValue(Map.empty), types)
+
+  def apply(labels: Seq[Option[Node]], edges: Seq[(Node, om.Field, Node)], types: Seq[om.Type]): Property = {
+    val graphEdges =
+      edges.groupBy(_._1).
+        mapValues(_.groupBy(_._2).
+          mapValues(_.head._3))
+    apply(labels, graphEdges, types)
+  }
 
   /**
    * This is a node in the ALPs graph.
@@ -43,7 +55,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
    * but it should be faster to keep it locally.
    * @param edges is the map from fields to nodes. It is a variable only because it is needed for self loops
    */
-  class Node(val nodeType: Option[om.Type] = None, var edges: Map[om.Field, Node] = Map()) {
+  /*class Node(val nodeType: Option[om.Type] = None, var edges: Map[om.Field, Node] = Map()) {
     /**
      * Expand a node adding all fields in om.Type
      */
@@ -56,15 +68,43 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         this
     }
     override def toString = s"n${this.hashCode()}"
+  }*/
+
+  class Node extends AnyRef {
+    override def toString = s"n${hashCode().toString}"
   }
+
+  type EdgeSet = Map[Node, Map[om.Field, Node]]
 
   type ALPsMorphism = Map[Node, Option[Node]]
 
-  case class Property(types: Seq[om.Type], labels: Seq[Option[Node]]) extends ObjectProperty[Property] {
+  case class Property(labels: Seq[Option[Node]], edges: EdgeSet, types: Seq[om.Type]) extends ObjectProperty[Property] {
 
     type Domain = ALPsDomain.this.type
 
     def domain = ALPsDomain.this
+
+    /**
+     * Returns the type of a node `n`, the least type of all the variables bound to `n`
+     */
+    private def nodeType(n: Node): Option[om.Type] = {
+      var nodet: Option[om.Type] = None
+      for ((Some(`n`), t) <- labels zip types) {
+        nodet = if (nodet == None) Some(t) else Some(om.min(nodet.get, t))
+      }
+      nodet
+    }
+
+    /**
+     * Returns the new set of edges of node `n` assuming its type becomes t
+     */
+    private def expandSpan(n: Node, t: om.Type) = {
+      var span = edges(n)
+      val nodet = nodeType(n)
+      if (nodet.isEmpty || om.lt(t, nodet.get))
+        for (f <- om.fieldsOf(t) -- om.fieldsOf(nodet.get); if !(span isDefinedAt f)) span += f -> new Node
+      span
+    }
 
     /**
      * Returns the node of the variable i of the graph, None if the variable is null
@@ -75,7 +115,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
      * Returns the node of the qualified field i.f, None if is null
      */
     def labelOf(i: Int, field: om.Field) = {
-      labels(i) flatMap { _.edges.get(field) }
+      labels(i) flatMap { edges(_).get(field) }
     }
 
     /**
@@ -83,9 +123,9 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
      */
     def typeOf(i: Int) = types(i)
 
-    def widening(that: Property): Property = ???
+    def widening(that: Property): Property = this.union(that)
 
-    def narrowing(that: Property): Property = ???
+    def narrowing(that: Property): Property = this.intersection(that)
 
     def union(that: Property): Property = ???
 
@@ -116,24 +156,27 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     def delVariable(v: Int) = ???
 
     def assignNull(dst: Int = dimension - 1): Property = {
-      Property(types, labels.updated(dst, None))
-    }
+      Property(labels.updated(dst, None), edges, types)
+    }       
 
     def assignVariable(dst: Int, src: Int): Property = {
       labelOf(src) match {
         case None =>
-          Property(types, labels.updated(dst, None))
+          assignNull(dst)
         case Some(src) =>
-          val n = src.expand(typeOf(dst))
-          Property(types, labels.updated(dst, Some(n)))
+          Property(labels.updated(dst, Some(src)), edges, types)
       }
     }
 
     def assignVariableToField(dst: Int, field: om.Field, src: Int): Property = {
-      if (isDefiniteNull(dst))
-        bottom
-      else
-        ???
+      labelOf(dst) match {
+        case None =>
+          bottom
+        case Some(dst) =>
+          val nodesrc = labelOf(src)
+          val newspan = if (nodesrc == None) edges(dst) - field else edges(dst) + (field -> nodesrc.get)
+          Property(labels, edges.updated(dst, newspan), types)
+      }
     }
 
     def assignFieldToVariable(dst: Int, src: Int, field: om.Field): Property = {
@@ -141,13 +184,17 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         bottom
       else {
         labelOf(src, field) match {
-          case None =>
-            Property(types, labels.updated(dst, None))
+          case None => assignNull(dst)
           case Some(src) =>
-            val n = src.expand(typeOf(dst))
-            // it does not work
-            Property(types, labels.updated(dst, Some(n)))
+            Property(labels.updated(dst, Some(src)), edges, types)
         }
+      }
+    }
+
+    def castVariable(v: Int, newtype: om.Type): Property = {
+      labelOf(v) match {
+        case None => Property(labels, edges, types updated (v, newtype))
+        case Some(n) => Property(labels, edges updated (n, expandSpan(n, newtype)), types updated (v, newtype))
       }
     }
 
@@ -155,7 +202,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       val loc = labelOf(v)
       (loc, fieldseq) match {
         case (None, _) => true
-        case (Some(node), Seq(f)) => node.edges.isDefinedAt(f)
+        case (Some(node), Seq(f)) => edges(node).isDefinedAt(f)
         case _ => false
       }
     }
@@ -196,8 +243,8 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
             case (None, None) => Seq()
           }
           */
-          for ((f, n) <- n1.edges) matchNode(Some(n), n2.edges.get(f))
-          for ((f, n) <- n2.edges) matchNode(n1.edges.get(f), Some(n))
+          for ((f, n) <- edges(n1)) matchNode(Some(n), other.edges(n2).get(f))
+          for ((f, n) <- other.edges(n2)) matchNode(edges(n1).get(f), Some(n))
         }
 
         def matchNode(on1: Option[Node], on2: Option[Node]): Option[Int] = {
@@ -283,7 +330,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         val l = if (hashValued) n.hashCode() else nodenames.getOrElseUpdate(n, { currnum += 1; currnum })
         s"${vars(v)} : ${typeOf(v)} -> n${l}"
       }
-      val s2 = for { Some(n) <- labels; (f, ntgt) <- n.edges } yield {
+      val s2 = for { Some(n) <- labels; (f, ntgt) <- edges(n) } yield {
         val l1 = if (hashValued) n.hashCode() else nodenames(n)
         val l2 = if (hashValued) ntgt.hashCode() else nodenames.getOrElseUpdate(ntgt, { currnum += 1; currnum })
         s"n${l1} -- ${f} --> n${l2}"

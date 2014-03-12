@@ -23,12 +23,13 @@ import org.scalatest.FunSuite
 import it.unich.jandom.domains.objects.ALPsDomain
 import it.unich.jandom.domains.objects.ObjectModel
 import org.scalatest.FlatSpec
+import org.scalatest.PrivateMethodTester
 
 /**
  * @author Gianluca Amato <gamato@unich.it>
  *
  */
-class ALPsSpec extends FunSpec {
+class ALPsSpec extends FunSpec with PrivateMethodTester {
   import scala.language.implicitConversions
 
   def ALPsMorphism[OM <: ObjectModel](om: OM)(dom: ALPsDomain[om.type])(g1: dom.Property, g2: dom.Property, m: dom.ALPsMorphism) {
@@ -48,8 +49,8 @@ class ALPsSpec extends FunSpec {
     it("is not bottom") { assert(!g.isBottom) }
     it("is not top") { assert(!g.isTop) }
     it("is not empty") { assert(!g.isEmpty) }
-    it("is bigger than bottom") { assert( g > bottom ) }
-    it("is smaller than top") { assert ( g < top ) }
+    it("is bigger than bottom") { assert(g > bottom) }
+    it("is smaller than top") { assert(g < top) }
     describe("has a morphism to bottom which") {
       val Some((1, m)) = g.tryMorphism(bottom)
       it should behave like ALPsMorphism(om)(dom)(g, bottom, m)
@@ -72,9 +73,9 @@ class ALPsSpec extends FunSpec {
 
       def mayShare(src: Type, tgt: Type) = true
       def fieldsOf(t: Type) = t match {
-        case `tsuper` => Seq('a', 'b')
-        case `tsub` => Seq('a', 'b', 'c')
-        case _ => Seq()
+        case `tsuper` => Set('a', 'b')
+        case `tsub` => Set('a', 'b', 'c')
+        case _ => Set()
       }
       def typeOf(f: Field) = f match {
         case 'a' => tsuper
@@ -88,38 +89,61 @@ class ALPsSpec extends FunSpec {
     val dom = ALPsDomain(TrivialObjectModel)
     val om = TrivialObjectModel
 
+    val nodeType = PrivateMethod[Option[om.Type]]('nodeType)
+    val expandSpan = PrivateMethod[Map[om.Field, dom.Node]]('expandSpan)
+
     implicit def sizeToTypes(size: Int) = Seq.fill(size)(om.tsuper)
 
+    val types = Seq(om.tsuper, om.tsuper, om.tsuper, om.tsub)
+
     val g1 = {
-      val n0 = new dom.Node()
-      val n1 = new dom.Node(Some(om.tsuper),Map('b' -> n0))
-      val n2 = new dom.Node(Some(om.tsuper),Map('a' -> n0))
-      dom(4, Seq(Some(n2), Some(n1), Some(n1), None))
+      val n0 = new dom.Node
+      val n1 = new dom.Node
+      val n2 = new dom.Node
+      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n1, 'b', n2)), 4)
     }
     val g1a = {
-      val n0 = new dom.Node()
-      val n1 = new dom.Node(Some(om.tsuper),Map('b' -> n0))
-      val n2 = new dom.Node(Some(om.tsuper),Map('a' -> n0))
-      dom(4, Seq(Some(n2), Some(n1), None, None))
+      val n0 = new dom.Node
+      val n1 = new dom.Node
+      val n2 = new dom.Node
+      dom(Seq(Some(n2), Some(n1), None, None), Seq((n1, 'b', n0), (n2, 'a', n0)), 4)
     }
     val g1b = {
-      val n0 = new dom.Node(Some(om.tsuper),Map('a' -> new dom.Node(), 'b' -> new dom.Node()))
-      val n1 = new dom.Node(Some(om.tsuper),Map('b' -> n0))
-      val n2 = new dom.Node(Some(om.tsuper),Map('a' -> n0))
-      dom(4, Seq(Some(n2), Some(n1), Some(n1), Some(n0)))
+      val n0 = new dom.Node
+      val n1 = new dom.Node
+      val n2 = new dom.Node
+      dom(Seq(Some(n0), Some(n1), Some(n2), None), Seq((n0, 'a', n2), (n1, 'b', n2)), 4)
+    }
+    val g1c = {
+      val n0 = new dom.Node
+      val n1 = new dom.Node
+      val n2 = new dom.Node
+      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n0, 'c', new dom.Node), (n1, 'b', n2)), om.tsub +: 3)
     }
     val g2 = {
-      val n0 = new dom.Node()
-      val n1 = new dom.Node(Some(om.tsuper))
-      val n2 = new dom.Node(Some(om.tsuper	),Map('a' -> n0))
-      dom(4, Seq(Some(n2), Some(n1), Some(n1), None))
+      val n0 = new dom.Node
+      val n1 = new dom.Node
+      val n2 = new dom.Node
+      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2)), 4)
     }
     val g3 = {
-      val n0 = new dom.Node()
-      val n1 = new dom.Node(Some(om.tsuper))
-      val n3 = new dom.Node(Some(om.tsuper))
-      val n2 = new dom.Node(Some(om.tsuper),Map('a' -> n0, 'b' -> n3))
-      dom(4, Seq(Some(n2), Some(n1), Some(n1), Some(n3)))
+      val n0 = new dom.Node
+      val n1 = new dom.Node
+      val n2 = new dom.Node
+      val n3 = new dom.Node
+      dom(Seq(Some(n2), Some(n1), Some(n1), Some(n3)), Seq((n2, 'a', n0), (n2, 'b', n3)), 4)
+    }
+    val g4 = {
+      val n0 = new dom.Node
+      val n1 = new dom.Node
+      val n2 = new dom.Node
+      dom(Seq(Some(n0), Some(n1), Some(n1), Some(n0)), Seq((n0, 'a', n2), (n0, 'b', n2), (n1, 'b', n0)), 3 :+ om.tsub)
+    }    
+    val g5 = {
+      val n0 = new dom.Node
+      val n1 = new dom.Node
+      val n2 = new dom.Node
+      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n1,'a',n1), (n1, 'b', n2)), 4)
     }
     val bot4 = dom.bottom(4)
     val top4 = dom.top(4)
@@ -196,6 +220,30 @@ class ALPsSpec extends FunSpec {
       }
     }
 
+    describe("The nodeType method") {
+      it("returns type t for nodes bounds to variables all of type t") {
+        assert((g4 invokePrivate nodeType(g4.labelOf(1).get)) === Some(om.tsuper))
+      }
+      it("returns the least type of all variables bound to the node") {
+        assert((g4 invokePrivate nodeType(g4.labelOf(0).get)) === Some(om.tsub))
+      }
+      it("returns None fot nodes not bound to variables") {
+        assert((g4 invokePrivate nodeType(g4.labelOf(0, 'a').get)) === None)
+      }
+    }
+
+    describe("The expandSpan method") {
+      val span = g1.labelOf(0).get
+      val newspan = g1 invokePrivate expandSpan(span, om.tsub)
+      println(newspan)
+      it("adds c field when moving from tsuper to tsub") {
+        assert(newspan isDefinedAt 'c')
+      }
+      it("does not add null fields") {
+        assert(!(newspan isDefinedAt 'b'))
+      }
+    }
+
     describe("The assignNull method") {
       val g = top4.assignNull(2)
       it("makes variable definitively null") {
@@ -222,9 +270,28 @@ class ALPsSpec extends FunSpec {
       it("gives bottom when the src variable is definitively null") {
         assert(g1.assignFieldToVariable(2, 3, 'a').isBottom)
       }
-      it("maps g1.assignFieldToVariable(3, 2, 'b') to g1b") {
-      //  assert(g1.assignFieldToVariable(3, 2, 'b') === g1b)
+      it("maps g1.assignFieldToVariable(2, 2, 'b') to g1b") {
+        assert(g1.assignFieldToVariable(2, 2, 'b') === g1b)
       }
     }
+
+    describe("The assignVariableToField method") {
+      it("gives bottom when the dst variable is definitively null") {
+        assert(g1.assignVariableToField(3, 2, 'a').isBottom)
+      }
+      it("it maps  g1.assignVariableToField(1, 'b', 2) to g2") {
+        assert(g1.assignVariableToField(1, 'b', 3) === g2)
+      }
+      it("it maps  g1.assignVariableToField(2, 'a', 2) to g5") {
+        assert(g1.assignVariableToField(2, 'a', 2) === g5)
+      }
+    }
+
+    describe("The cast method") {
+      it("maps g1.castVariable(0,tsub) to g1c") {
+        assert(g1.castVariable(0, om.tsub) === g1c)
+      }
+    }
+
   }
 }

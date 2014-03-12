@@ -176,6 +176,8 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
       else
         new Property(removed ++ renameVariable(removed, dst, src) + UP(dst, src), rtypes)
     }
+    
+    def castVariable(v: Int, newtype: om.Type) = this
 
     def assignFieldToVariable(dst: Int, src: Int, field: om.Field) = {
       if (isDefiniteNull(src)) // src is null, hence accessing its field returns an error

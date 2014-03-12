@@ -33,7 +33,7 @@ class PairSharingSuite extends FunSuite {
     type Type = Unit
     type Field = Int
     def mayShare(src: Type, tgt: Type) = true
-    def fieldsOf(t: Type) = Seq()
+    def fieldsOf(t: Type) = Set()
     def typeOf(f: Field) = {}
     def lt(t1: Type, t2: Type) = false
   }
@@ -166,7 +166,7 @@ class PairSharingSuite extends FunSuite {
       type Type = Int
       type Field = Int
       def mayShare(src: Type, tgt: Type) = UP(src,tgt) != UP(0,1)
-      def fieldsOf(t: Type) = Seq()
+      def fieldsOf(t: Type) = Set()
       def typeOf(f: Field) = f
       def lt(t1: Type, t2: Type) = false
     }
