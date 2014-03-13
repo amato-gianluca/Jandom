@@ -107,6 +107,22 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     }
 
     /**
+     *  Returns the set of nodes reachable by `n`
+     */
+    private def reachableNodes(n: Node) = {
+      val s = collection.mutable.Set(n)
+      val q = collection.mutable.Queue(n)
+      while (!q.isEmpty) {
+        val n = q.dequeue
+        for ((f, tgt) <- edges(n); if !(s contains tgt)) {
+          s += tgt
+          q.enqueue(tgt)
+        }
+      }
+      s
+    }
+
+    /**
      * Returns the node of the variable i of the graph, None if the variable is null
      */
     def labelOf(i: Int) = labels(i)
@@ -127,13 +143,123 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
     def narrowing(that: Property): Property = this.intersection(that)
 
-    def union(that: Property): Property = ???
+    def union(other: Property): Property = {
+
+      class UnionBuilder {
+        private val map1 = collection.mutable.Map[Node, Node]()
+        private val map2 = collection.mutable.Map[Node, Node]()
+        private val reachable1 = collection.mutable.Set[Node]()
+        private val reachable2 = collection.mutable.Set[Node]()
+        private val newedges = collection.mutable.Map[Node, Map[om.Field, Node]]().withDefaultValue(Map())
+
+        def getEdges = newedges.toMap.withDefaultValue(Map())
+
+        def copySubgraph(reachable: collection.mutable.Set[Node], node: Node): Node = {
+          val newnode = new Node
+          reachable += newnode
+          val span = for ((f, n) <- newedges(node)) yield (f, copySubgraph(reachable,n))
+          newedges(newnode) = span
+          newnode
+        }
+
+        def matchFields(newnode: Node, n1: Node, n2: Node) = {
+          reachable1 += newnode
+          reachable2 += newnode
+          for ((f, n) <- edges(n1)) {
+            val newtgt = matchNode(Some(n), other.edges(n2).get(f))
+            newedges(newnode) += f -> newtgt
+          }
+          for ((f, n) <- other.edges(n2)) {
+            val newtgt = matchNode(edges(n1).get(f), Some(n))
+            newedges(newnode) += f -> newtgt
+          }
+        }
+
+        def matchNode(on1: Option[Node], on2: Option[Node]): Node = {
+          //println(on1, on2)
+          (on1, on2) match {
+            case (Some(n1), Some(n2)) =>
+              (map1 isDefinedAt n1, map2 isDefinedAt n2) match {
+                case (false, false) =>
+                  map1 += n1 -> n1
+                  map2 += n2 -> n1
+                  matchFields(n1, n1, n2)
+                  n1
+                case (true, false) =>
+                  val newnode = new Node
+                  map1 += n1 -> newnode
+                  matchFields(newnode, n1, n2)
+                  newnode
+                case (false, true) =>
+                  val newnode = new Node
+                  map2 += n2 -> newnode
+                  matchFields(newnode, n1, n2)
+                  newnode
+                case (true, true) =>
+                  if (map1(n1) == map2(n2))
+                    map1(n1)
+                  else {
+                    val newnode = new Node
+                    matchFields(newnode, n1, n2)
+                    newnode
+                  }
+              }
+            case (None, Some(n2)) =>
+              map2.get(n2) match {
+                case None =>
+                  newedges(n2) = other.edges(n2)
+                  map2(n2) = n2
+                  n2
+                case Some(n) =>
+                  if (reachable1 contains n)
+                    copySubgraph(reachable1, n)
+                  else
+                    n
+              }
+            case (Some(n1), None) =>
+              map1.get(n1) match {
+                case None =>
+                  newedges(n1) = edges(n1)
+                  map1(n1) = n1
+                  n1
+                case Some(n) =>
+                  if (reachable2 contains n)
+                    copySubgraph(reachable2, n)
+                  else
+                    n
+              }
+            case _ =>
+              throw new IllegalStateException("This should never happen")
+          }
+        }
+      }
+
+      val unionBuilder = new UnionBuilder()
+      val newlabels = for (i <- 0 until labels.length) yield {
+        val n1 = labelOf(i)
+        val n2 = other.labelOf(i)
+        if (n1.isDefined || n2.isDefined)
+          Some(unionBuilder.matchNode(labelOf(i), other.labelOf(i)))
+        else
+          None
+      }
+      new Property(newlabels, unionBuilder.getEdges, types)
+    }
 
     def intersection(that: Property): Property = ???
 
     def isEmpty: Boolean = false
 
-    def mapVariables(rho: Seq[Int]): Property = ???
+    def mapVariables(rho: Seq[Int]): Property = {
+      val newsize = rho.count(_ != -1)
+      val revrho = collection.mutable.Buffer.fill(newsize)(0)
+      for ((newidx, oldidx) <- rho.zipWithIndex; if newidx != -1) revrho(newidx) = oldidx
+      mapVariablesReverse(revrho)
+    }
+
+    def mapVariablesReverse(rho: Seq[Int]): Property = {
+      new Property(rho map labels, edges, rho map types)
+    }
 
     def top: Property = domain.top(fiber)
 
@@ -149,15 +275,26 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
     def dimension = labels.size
 
-    def addFreshVariable(t: om.Type): Property = ???
+    def addFreshVariable(t: om.Type): Property = {
+      val n = new Node
+      val span: Map[om.Field, Node] = om.fieldsOf(t).map { _ -> new Node }(collection.breakOut)
+      new Property(labels :+ Some(n), edges updated (n, span), types :+ t)
+    }
 
-    def addVariable(t: om.Type): Property = ???
+    def addVariable(t: om.Type): Property = {
+      addFreshVariable(t)
+    }
 
-    def delVariable(v: Int) = ???
+    def delVariable(v: Int): Property = {
+      if (v == dimension - 1)
+        new Property(labels.dropRight(1), edges, types.dropRight(1))
+      else
+        new Property(labels.take(v) ++ labels.drop(v + 1), edges, types.take(v) ++ types.drop(v + 1))
+    }
 
     def assignNull(dst: Int = dimension - 1): Property = {
       Property(labels.updated(dst, None), edges, types)
-    }       
+    }
 
     def assignVariable(dst: Int, src: Int): Property = {
       labelOf(src) match {
@@ -207,9 +344,27 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       }
     }
 
-    def testNull(v: Int): Property = ???
+    def testNull(v: Int): Property = {
+      labelOf(v) match {
+        case None => this
+        case Some(nullnode) =>
+          val nodes = reachableNodes(nullnode)
+          val newlabels = labels map { _ flatMap { n => if (nodes contains n) None else Some(n) } }
+          val newedges = edges mapValues { span => span filterNot { case (f, n) => nodes contains n } }
+          /**
+           * @todo We need to repeat here the withDefaultValue option.... we probably should consider rewriting
+           * stuff so that we do no need them
+           */
+          new Property(newlabels, newedges withDefaultValue (Map()), types)
+      }
+    }
 
-    def testNotNull(v: Int): Property = ???
+    def testNotNull(v: Int): Property = {
+      if (isDefiniteNull(v))
+        bottom
+      else
+        this
+    }
 
     /**
      * Returns, if it exists, a morphism connecting `this` and `other`.
@@ -235,19 +390,12 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         }
 
         def matchFields(n1: Node, n2: Node) = {
-          /*
-          val fields = (n1.nodeType,n2.nodeType) match {
-            case (Some(t1), Some(t2)) => om.fieldsOf(om.min(t1,t2))
-            case (Some(t1), None) => om.fieldsOf(t1)
-            case (None, Some(t2)) => om.fieldsOf(t2)
-            case (None, None) => Seq()
-          }
-          */
           for ((f, n) <- edges(n1)) matchNode(Some(n), other.edges(n2).get(f))
           for ((f, n) <- other.edges(n2)) matchNode(edges(n1).get(f), Some(n))
         }
 
         def matchNode(on1: Option[Node], on2: Option[Node]): Option[Int] = {
+          //println(status, on1, on2)
           (status, on1, on2) match {
             case (Some(0), Some(n1), Some(n2)) =>
               (map1 isDefinedAt n1, map2 isDefinedAt n2) match {
@@ -330,12 +478,12 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         val l = if (hashValued) n.hashCode() else nodenames.getOrElseUpdate(n, { currnum += 1; currnum })
         s"${vars(v)} : ${typeOf(v)} -> n${l}"
       }
-      val s2 = for { Some(n) <- labels; (f, ntgt) <- edges(n) } yield {
+      val s2 = for { Some(n) <- labels.toSet; (f, ntgt) <- edges(n) } yield {
         val l1 = if (hashValued) n.hashCode() else nodenames(n)
         val l2 = if (hashValued) ntgt.hashCode() else nodenames.getOrElseUpdate(ntgt, { currnum += 1; currnum })
         s"n${l1} -- ${f} --> n${l2}"
       }
-      s1.mkString("Vars: ", ", ", "") + " // " + s2.mkString("Nodes: ", ", ", "")
+      s1.mkString("Vars: ", ", ", "") + " // " + s2.mkString("Edges: ", ", ", "")
     }
   }
 }

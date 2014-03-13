@@ -120,6 +120,28 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
       val n2 = new dom.Node
       dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n0, 'c', new dom.Node), (n1, 'b', n2)), om.tsub +: 3)
     }
+    val g1d = {
+      val n0 = new dom.Node
+      val n1 = new dom.Node
+      val n2 = new dom.Node
+      val n3 = new dom.Node
+      dom(Seq(Some(n0), Some(n1), Some(n1), None, Some(n3)), Seq((n0, 'a', n2), (n1, 'b', n2), (n3, 'a', new dom.Node), (n3, 'b', new dom.Node)), 5)
+    }
+    val g1e = {
+      val n0 = new dom.Node
+      val n1 = new dom.Node
+      val n2 = new dom.Node
+      dom(Seq(Some(n1), Some(n0), None), Seq((n0, 'a', n2), (n1, 'b', n2)), 3)
+    }
+    val g1f = {
+      val n0 = new dom.Node
+      val n1 = new dom.Node
+      val n2 = new dom.Node
+      dom(Seq(Some(n0), Some(n1), None), Seq((n0, 'a', n2), (n1, 'b', n2)), 3)
+    }
+    val g1bb = {
+      dom(Seq(None, Some(new dom.Node), None, None), Seq(), 4)
+    }
     val g2 = {
       val n0 = new dom.Node
       val n1 = new dom.Node
@@ -138,15 +160,23 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
       val n1 = new dom.Node
       val n2 = new dom.Node
       dom(Seq(Some(n0), Some(n1), Some(n1), Some(n0)), Seq((n0, 'a', n2), (n0, 'b', n2), (n1, 'b', n0)), 3 :+ om.tsub)
-    }    
+    }
     val g5 = {
       val n0 = new dom.Node
       val n1 = new dom.Node
       val n2 = new dom.Node
-      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n1,'a',n1), (n1, 'b', n2)), 4)
+      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n1, 'a', n1), (n1, 'b', n2)), 4)
+    }
+    val g5big = {
+      val n0 = new dom.Node
+      val n1 = new dom.Node
+      val n2 = new dom.Node
+      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n1, 'a', new dom.Node), (n1, 'b', n2)), 4)
     }
     val bot4 = dom.bottom(4)
     val top4 = dom.top(4)
+
+    val allgraphs = Seq(g1,g2,g3,g4,g5,bot4,top4,g1a,g1b,g1c,g1d,g1e,g1f,g1bb)
 
     describe("The bottom ALPs graph of dimension 4") {
       val size = 4
@@ -220,6 +250,12 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
       }
     }
 
+    describe("The graph g5") {
+      it should behave like nonExtremalGraph(om)(dom)(g5)
+      it("has dimension 4") { assert(g5.dimension === 4) }
+      it("is smaller than g5big") { assert(g5 < g5big) }
+    }
+
     describe("The nodeType method") {
       it("returns type t for nodes bounds to variables all of type t") {
         assert((g4 invokePrivate nodeType(g4.labelOf(1).get)) === Some(om.tsuper))
@@ -235,7 +271,6 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
     describe("The expandSpan method") {
       val span = g1.labelOf(0).get
       val newspan = g1 invokePrivate expandSpan(span, om.tsub)
-      println(newspan)
       it("adds c field when moving from tsuper to tsub") {
         assert(newspan isDefinedAt 'c')
       }
@@ -290,6 +325,95 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
     describe("The cast method") {
       it("maps g1.castVariable(0,tsub) to g1c") {
         assert(g1.castVariable(0, om.tsub) === g1c)
+      }
+    }
+
+    describe("The addFreshVariable method") {
+      it("maps g1.addFreshVariable(tsuper) to g1d") {
+        assert(g1.addFreshVariable(om.tsuper) === g1d)
+      }
+    }
+
+    describe("The addVariable method") {
+      it("transforms top in top") {
+        assert(top4.addVariable(om.tsuper) === dom.top(5))
+      }
+    }
+
+    describe("The delVariable method") {
+      it("transforms top in top") {
+        for (v <- 0 until top4.dimension) assert(top4.delVariable(v) === dom.top(3))
+      }
+      it("transforms bottom in bottom") {
+        for (v <- 0 until bot4.dimension) assert(bot4.delVariable(v) === dom.bottom(3))
+      }
+    }
+
+    describe("The mapVariables method") {
+      val rhos = Seq(Seq(-1, -1, -1, 0), Seq(2, 1, -1, 0), Seq(0, 1, 2, 3), Seq(3, 0, 2, 1))
+      it("transforms top in top") {
+        for (v <- 0 until top4.dimension; rho <- rhos) assert(top4.mapVariables(rho).isTop)
+      }
+      it("transforms bottom in bottom") {
+        for (v <- 0 until bot4.dimension; rho <- rhos) assert(bot4.mapVariables(rho).isBottom)
+      }
+      it("maps g1.mapVariables(Seq(1, -1, 0, 2)) to g1e") {
+        assert(g1.mapVariables(Seq(1, -1, 0, 2)) === g1e)
+      }
+      it("maps g1.mapVariables(Seq(0, 1,  -1, 2)) to g1f") {
+        assert(g1.mapVariables(Seq(0, 1, -1, 2)) === g1f)
+      }
+    }
+
+    describe("The testNull method") {
+      it("is the identity on bottom") {
+        for (size <- 0 until 4; j <- 0 until size) {
+          assert(dom.bottom(size).testNull(j).isBottom)
+        }
+      }
+      it("is equivalent to assignNull for top") {
+        for (size <- 0 until 4; j <- 0 until size) {
+          assert(dom.top(size).testNull(j) === dom.top(size).assignNull(j))
+        }
+      }
+      it("maps g1b.testNull(0) to g1bb") {
+        assert(g1b.testNull(0) === g1bb)
+      }
+    }
+
+    describe("The testNull method") {
+      it("is identity on bottom") {
+        for (size <- 0 until 4; j <- 0 until size) {
+          assert(dom.bottom(size).testNotNull(j).isBottom)
+        }
+      }
+      it("is identity on top") {
+        for (size <- 0 until 4; j <- 0 until size) {
+          assert(dom.top(size).testNotNull(j).isTop )
+        }
+      }
+      it("is bottom if applied to a definite null variable") {
+        assert (g1.testNotNull(3).isBottom)
+      }
+    }
+
+    describe("Union") {
+      it("is idempotent") {
+        for (g <- allgraphs) assert((g union g) === g)
+      }
+      it("is bigger then operands") {
+     	for (g1 <- allgraphs; g2 <- allgraphs; if g1.fiber == g2.fiber)
+     	  assert( (g1 union g2) >= g2, s"${g1} union ${g2} is ${g1 union g2}" )
+      }
+      it("has bottom as right neutral element") {
+        for (g <- allgraphs) {
+          assert( (g union g.bottom) === g)
+          }
+      }
+      it("has bottom as left neutral element") {
+        for (g <- allgraphs) {
+          assert( (g.bottom union g) === g)
+        }
       }
     }
 
