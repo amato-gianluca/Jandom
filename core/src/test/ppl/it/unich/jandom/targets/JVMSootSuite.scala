@@ -147,7 +147,7 @@ class JVMSootSuite extends FunSuite with SootTests {
       "class_parametric" -> Set(UP(0, 0), UP(0, 5), UP(1, 1), UP(1, 5), UP(2, 2), UP(0, 1), UP(0, 2), UP(3, 4), UP(1, 2), UP(2, 5), UP(4, 4), UP(5, 5), UP(3, 3)))
 
     for ((methodName, ps) <- jimplePairSharingTests) {
-      val method = new JimpleMethod(c.getMethodByName(methodName))
+      val jmethod = new JimpleMethod(c.getMethodByName(methodName))
       val params = new Parameters[JimpleMethod] {
         val om = new SootObjectModel(classAnalysis)
         val domain = new SootFrameObjectDomain(psdom)
@@ -158,9 +158,8 @@ class JVMSootSuite extends FunSuite with SootTests {
       params.interpretation = Some(inte)
       test(s"Jimple object analysis: ${methodName}") {
         try {
-          val ann = method.analyze(params)
-          val types = (method.body.getLocals.toSeq.map { x: Local => x.getType() }) ++ method.body.getMethod().getParameterTypes().toSeq.asInstanceOf[Seq[soot.Type]]
-          assert(ann(method.lastPP.get).prop === psdom(ps,  types))
+          val ann = jmethod.analyze(params)
+          assert(ann(jmethod.lastPP.get).prop === psdom(ps,  jmethod.localTypes(params)))
         } finally {
           params.debugWriter.flush()
         }
@@ -169,11 +168,11 @@ class JVMSootSuite extends FunSuite with SootTests {
   }
 
   def jimpleInterProceduralPSTests() {
-    val jimplePairSharingTests = Seq(
-      "sequential" -> psdom(Set(), Seq()),
-      "objcreation" -> psdom(Set(), Seq()),
-      "class_parametric" -> psdom(Set(UP(0, 0), UP(0, 1), UP(1, 1)), Seq(IntType.v(), IntType.v())),
-      "pair_one" -> psdom(Set(UP(0, 0), UP(0, 2), UP(1, 1), UP(2, 2)), Seq(IntType.v(), IntType.v(), IntType.v())))
+    val jimplePairSharingTests:  Seq[(String, Set[UP[Int]])]  = Seq(
+      "sequential" -> Set(),
+      "objcreation" -> Set(),
+      "class_parametric" -> Set(UP(0, 0), UP(0, 1), UP(1, 1)),
+      "pair_one" -> Set(UP(0, 0), UP(0, 2), UP(1, 1), UP(2, 2)))
 
     for ((methodName, prop) <- jimplePairSharingTests) {
       val method = c.getMethodByName(methodName)
@@ -188,7 +187,7 @@ class JVMSootSuite extends FunSuite with SootTests {
         val input = params.domain.top(c.getMethodByName(methodName).getParameterTypes().asInstanceOf[java.util.List[Type]])
         try {
           inte.compute(method, input)
-          assert(inte(method, input).prop === prop)
+          assert(inte(method, input).prop === psdom(prop,jmethod.outputTypes))
         } finally {
           params.debugWriter.flush()
         }
