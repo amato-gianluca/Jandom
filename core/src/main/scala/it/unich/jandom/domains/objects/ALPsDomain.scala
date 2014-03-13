@@ -154,12 +154,18 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
         def getEdges = newedges.toMap.withDefaultValue(Map())
 
-        def copySubgraph(reachable: collection.mutable.Set[Node], node: Node): Node = {
-          val newnode = new Node
-          reachable += newnode
-          val span = for ((f, n) <- newedges(node)) yield (f, copySubgraph(reachable,n))
-          newedges(newnode) = span
-          newnode
+        def copySubgraph(g: Property, reachable: collection.mutable.Set[Node], map: collection.mutable.Map[Node, Node], node: Node): Node = {
+          map.get(node) match {
+            case None =>              
+              val newnode = new Node
+              reachable += newnode
+              map(node) = newnode
+              val span = for ((f, n) <- g.edges(node)) yield (f, copySubgraph(g, reachable, map, n))
+              newedges(newnode) = span
+              newnode
+            case Some(newnode) =>
+              newnode
+          }
         }
 
         def matchFields(newnode: Node, n1: Node, n2: Node) = {
@@ -169,14 +175,14 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
             val newtgt = matchNode(Some(n), other.edges(n2).get(f))
             newedges(newnode) += f -> newtgt
           }
-          for ((f, n) <- other.edges(n2)) {
+          for ((f, n) <- other.edges(n2)) {            
             val newtgt = matchNode(edges(n1).get(f), Some(n))
             newedges(newnode) += f -> newtgt
           }
+          newnode
         }
 
         def matchNode(on1: Option[Node], on2: Option[Node]): Node = {
-          //println(on1, on2)
           (on1, on2) match {
             case (Some(n1), Some(n2)) =>
               (map1 isDefinedAt n1, map2 isDefinedAt n2) match {
@@ -184,24 +190,20 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
                   map1 += n1 -> n1
                   map2 += n2 -> n1
                   matchFields(n1, n1, n2)
-                  n1
                 case (true, false) =>
                   val newnode = new Node
                   map1 += n1 -> newnode
                   matchFields(newnode, n1, n2)
-                  newnode
                 case (false, true) =>
                   val newnode = new Node
                   map2 += n2 -> newnode
                   matchFields(newnode, n1, n2)
-                  newnode
                 case (true, true) =>
                   if (map1(n1) == map2(n2))
                     map1(n1)
                   else {
                     val newnode = new Node
                     matchFields(newnode, n1, n2)
-                    newnode
                   }
               }
             case (None, Some(n2)) =>
@@ -211,9 +213,9 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
                   map2(n2) = n2
                   n2
                 case Some(n) =>
-                  if (reachable1 contains n)
-                    copySubgraph(reachable1, n)
-                  else
+                  if (reachable1 contains n) {                    
+                    copySubgraph(other, reachable1, collection.mutable.Map(), n2)
+                  } else
                     n
               }
             case (Some(n1), None) =>
@@ -223,9 +225,9 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
                   map1(n1) = n1
                   n1
                 case Some(n) =>
-                  if (reachable2 contains n)
-                    copySubgraph(reachable2, n)
-                  else
+                  if (reachable2 contains n) {
+                    copySubgraph(Property.this ,reachable2, collection.mutable.Map(), n1)
+                  } else
                     n
               }
             case _ =>
@@ -390,12 +392,13 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         }
 
         def matchFields(n1: Node, n2: Node) = {
-          for ((f, n) <- edges(n1)) matchNode(Some(n), other.edges(n2).get(f))
-          for ((f, n) <- other.edges(n2)) matchNode(edges(n1).get(f), Some(n))
+          if (nodeType(n1).isDefined && other.nodeType(n2).isDefined) {
+            for ((f, n) <- edges(n1)) matchNode(Some(n), other.edges(n2).get(f))
+            for ((f, n) <- other.edges(n2)) matchNode(edges(n1).get(f), Some(n))
+          }
         }
 
         def matchNode(on1: Option[Node], on2: Option[Node]): Option[Int] = {
-          //println(status, on1, on2)
           (status, on1, on2) match {
             case (Some(0), Some(n1), Some(n2)) =>
               (map1 isDefinedAt n1, map2 isDefinedAt n2) match {
@@ -404,12 +407,12 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
                   map2 += n2 -> on1
                   matchFields(n1, n2)
                 case (true, false) =>
-                  map1 += n1 -> None
-                  status = Some(1)
+                  map2 += n2 -> on1
+                  status = Some(-1)
                   matchFields(n1, n2)
                 case (false, true) =>
-                  map2 += n2 -> None
-                  status = Some(-1)
+                  map1 += n1 -> on2
+                  status = Some(1)
                   matchFields(n1, n2)
                 case (true, true) =>
                   status = if (map1(n1) == on2) status else None
@@ -469,7 +472,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       }
     }
 
-    def mkString(vars: Seq[String]) = mkString(vars, false)
+    def mkString(vars: Seq[String]) = mkString(vars, true)
 
     def mkString(vars: Seq[String], hashValued: Boolean) = {
       val nodenames = collection.mutable.Map[Node, Int]()

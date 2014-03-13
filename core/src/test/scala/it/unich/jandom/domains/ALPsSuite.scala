@@ -161,6 +161,27 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
       val n2 = new dom.Node
       dom(Seq(Some(n0), Some(n1), Some(n1), Some(n0)), Seq((n0, 'a', n2), (n0, 'b', n2), (n1, 'b', n0)), 3 :+ om.tsub)
     }
+    val g4b = {
+      val n0 = new dom.Node
+      val n1 = new dom.Node
+      val n2 = new dom.Node
+      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2)), 3 :+ om.tsub)
+    }
+     val g4union = {
+      val n0 = new dom.Node
+      val n1 = new dom.Node
+      val n2 = new dom.Node
+      val n4 = new dom.Node
+      dom(Seq(Some(n0), Some(n1), Some(n1), Some(n2)), Seq((n0, 'a', new dom.Node), (n0, 'b', new dom.Node), (n1, 'b', new dom.Node),
+        (n2, 'a', n4), (n2, 'b', n4)), 3 :+ om.tsub)
+    }
+    val g4big = {
+      val n0 = new dom.Node
+      val n1 = new dom.Node
+      val n2 = new dom.Node
+      dom(Seq(Some(n0), Some(n1), Some(n1), Some(n2)), Seq((n0, 'a', new dom.Node), (n0, 'b', new dom.Node), (n1, 'b', new dom.Node),
+        (n2, 'a', new dom.Node), (n2, 'b', new dom.Node)), 3 :+ om.tsub)
+    }
     val g5 = {
       val n0 = new dom.Node
       val n1 = new dom.Node
@@ -176,7 +197,7 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
     val bot4 = dom.bottom(4)
     val top4 = dom.top(4)
 
-    val allgraphs = Seq(g1,g2,g3,g4,g5,bot4,top4,g1a,g1b,g1c,g1d,g1e,g1f,g1bb)
+    val allgraphs = Seq(g1, g2, g3, g4, g5, bot4, top4, g1a, g1b, g1c, g1d, g1e, g1f, g1bb)
 
     describe("The bottom ALPs graph of dimension 4") {
       val size = 4
@@ -248,6 +269,12 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
         val Some((-1, m)) = g2.tryMorphism(g3)
         it should behave like ALPsMorphism(om)(dom)(g3, g2, m)
       }
+    }
+
+    describe("The graph g4") {
+      it should behave like nonExtremalGraph(om)(dom)(g4)
+      it("has dimension 4") { assert(g4.dimension === 4) }
+      it("is smaller than g4big") { assert(g4 < g4big) }
     }
 
     describe("The graph g5") {
@@ -389,31 +416,37 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
       }
       it("is identity on top") {
         for (size <- 0 until 4; j <- 0 until size) {
-          assert(dom.top(size).testNotNull(j).isTop )
+          assert(dom.top(size).testNotNull(j).isTop)
         }
       }
       it("is bottom if applied to a definite null variable") {
-        assert (g1.testNotNull(3).isBottom)
+        assert(g1.testNotNull(3).isBottom)
       }
     }
 
-    describe("Union") {
+    describe("The union method") {
       it("is idempotent") {
         for (g <- allgraphs) assert((g union g) === g)
       }
       it("is bigger then operands") {
-     	for (g1 <- allgraphs; g2 <- allgraphs; if g1.fiber == g2.fiber)
-     	  assert( (g1 union g2) >= g2, s"${g1} union ${g2} is ${g1 union g2}" )
+        for (g1 <- allgraphs; g2 <- allgraphs; if g1.fiber == g2.fiber) {
+          assert((g1 union g2) >= g2, s"${g1} union ${g2} is ${g1 union g2}")
+          assert((g1 union g2) >= g1, s"${g1} union ${g2} is ${g1 union g2}")
+        }
       }
       it("has bottom as right neutral element") {
         for (g <- allgraphs) {
-          assert( (g union g.bottom) === g)
-          }
+          assert((g union g.bottom) === g)
+        }
       }
       it("has bottom as left neutral element") {
         for (g <- allgraphs) {
-          assert( (g.bottom union g) === g)
+          assert((g.bottom union g) === g)
         }
+      }
+      it("yields g4union when applied to g4 union g4b") {
+        assert((g4b union g4) === g4union )
+        assert((g4 union g4b) === g4union )
       }
     }
 
