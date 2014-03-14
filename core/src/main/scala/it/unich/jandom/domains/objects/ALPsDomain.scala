@@ -141,7 +141,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
     def widening(that: Property): Property = this.union(that)
 
-    def narrowing(that: Property): Property = this.intersection(that)
+    def narrowing(that: Property): Property = that
 
     def union(other: Property): Property = {
 
@@ -156,7 +156,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
         def copySubgraph(g: Property, reachable: collection.mutable.Set[Node], map: collection.mutable.Map[Node, Node], node: Node): Node = {
           map.get(node) match {
-            case None =>              
+            case None =>
               val newnode = new Node
               reachable += newnode
               map(node) = newnode
@@ -175,7 +175,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
             val newtgt = matchNode(Some(n), other.edges(n2).get(f))
             newedges(newnode) += f -> newtgt
           }
-          for ((f, n) <- other.edges(n2)) {            
+          for ((f, n) <- other.edges(n2)) {
             val newtgt = matchNode(edges(n1).get(f), Some(n))
             newedges(newnode) += f -> newtgt
           }
@@ -213,7 +213,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
                   map2(n2) = n2
                   n2
                 case Some(n) =>
-                  if (reachable1 contains n) {                    
+                  if (reachable1 contains n) {
                     copySubgraph(other, reachable1, collection.mutable.Map(), n2)
                   } else
                     n
@@ -226,7 +226,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
                   n1
                 case Some(n) =>
                   if (reachable2 contains n) {
-                    copySubgraph(Property.this ,reachable2, collection.mutable.Map(), n1)
+                    copySubgraph(Property.this, reachable2, collection.mutable.Map(), n1)
                   } else
                     n
               }
@@ -248,7 +248,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       new Property(newlabels, unionBuilder.getEdges, types)
     }
 
-    def intersection(that: Property): Property = ???
+    def intersection(other: Property): Property = ???
 
     def isEmpty: Boolean = false
 
@@ -271,7 +271,26 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
     def isBottom: Boolean = labels forall { _.isEmpty }
 
-    def connect(other: Property, common: Int): Property = ???
+    def connect(other: Property, common: Int): Property = {
+      // we do not call delVariables since it is not guarantee to preserve node identity
+      val thisRestricted = new Property(labels.drop(dimension - common), edges, types.drop(dimension - common))
+      val otherRestricted = new Property(other.labels.dropRight(other.dimension - common), edges, types.dropRight(other.dimension - common))
+      val Some((dir, m)) = thisRestricted.tryMorphism(otherRestricted)
+      if (dir > 0) throw new IllegalArgumentException("This case is not implemented yet")
+      val newlabels = labels.dropRight(common) ++ (other.labels.drop(common) map { _ flatMap m })
+      val newtypes = types.dropRight(common) ++ other.types.drop(common)
+      val convertedEdges = for {
+        (src, span) <- other.edges
+        newsrc = m.getOrElse(src, Some(src))
+        if newsrc.isDefined
+      } yield newsrc.get -> (for {
+        (f, dst) <- span
+        newdst = m.getOrElse(dst, Some(dst))
+        if newdst.isDefined
+      } yield f -> newdst.get)
+      val newedges = edges ++ convertedEdges
+      new Property(newlabels, newedges, newtypes)
+    }
 
     def fiber = types
 
@@ -472,7 +491,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       }
     }
 
-    def mkString(vars: Seq[String]) = mkString(vars, true)
+    def mkString(vars: Seq[String]) = mkString(vars, false)
 
     def mkString(vars: Seq[String], hashValued: Boolean) = {
       val nodenames = collection.mutable.Map[Node, Int]()
