@@ -19,6 +19,7 @@
 package it.unich.jandom.ui
 import it.unich.jandom.domains.objects.ObjectDomainFactory
 import it.unich.jandom.domains.objects.PairSharingDomain
+import it.unich.jandom.domains.objects.ALPsDomain
 
 /**
  * A parameter enumeration for the object domain which are supported in Jandom.
@@ -28,7 +29,8 @@ object ObjectDomains extends ParameterEnumeration[ObjectDomainFactory] {
   val name = "Object Domain"
   val description = "The object domain to use for the analysis"
   val values: Seq[ParameterValue[ObjectDomainFactory]] = Seq(
-		  ParameterValue(PairSharingDomain,"Pair Sharing","The pair sharing domain by Spoto and Secci")
+		  ParameterValue(PairSharingDomain,"Pair Sharing","The pair sharing domain by Spoto and Secci"),
+ 		  ParameterValue(ALPsDomain,"ALPs","A domain for aliasing, sharing and linearity (only aliasin right now")
   )
   val default = values.last
 }

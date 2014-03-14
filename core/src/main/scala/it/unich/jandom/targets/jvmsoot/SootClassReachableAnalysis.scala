@@ -57,8 +57,9 @@ class SootClassReachableAnalysis(scene: Scene) {
         reachable(klass) = Set()
         val result = for {
           field <- klass.getFields()
-          Some(refClass) = getClassFromType(field.getType())
-          reachableClass <- reachablesFrom(refClass)
+          refClass = getClassFromType(field.getType())
+          if refClass.isDefined
+          reachableClass <- reachablesFrom(refClass.get)
         } yield reachableClass
         val reachableClasses = result.toSet + klass
         reachable(klass) = reachableClasses
