@@ -19,6 +19,7 @@
 package it.unich.jandom.domains.objects
 
 import scala.collection.breakOut
+import it.unich.jandom.utils.DisjointSets
 
 /**
  * The domain for the ALPs domain.0
@@ -50,26 +51,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
   /**
    * This is a node in the ALPs graph.
-   * @param nodeType is the minimum class of the variables bound to this node. None means that
-   * there are no variable bound to this node. It could be computed by other informations in a graph,
-   * but it should be faster to keep it locally.
-   * @param edges is the map from fields to nodes. It is a variable only because it is needed for self loops
    */
-  /*class Node(val nodeType: Option[om.Type] = None, var edges: Map[om.Field, Node] = Map()) {
-    /**
-     * Expand a node adding all fields in om.Type
-     */
-    def expand(t: om.Type) = {
-      var newedges = edges
-      if (nodeType.isEmpty || om.lt(t, nodeType.get)) {
-        for (f <- om.fieldsOf(t); if !(edges isDefinedAt f)) newedges += f -> new Node()
-        new Node(Some(t), newedges)
-      } else
-        this
-    }
-    override def toString = s"n${this.hashCode()}"
-  }*/
-
   class Node extends AnyRef {
     override def toString = s"n${hashCode().toString}"
   }
@@ -248,7 +230,44 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       new Property(newlabels, unionBuilder.getEdges, types)
     }
 
-    def intersection(other: Property): Property = ???
+    def intersection(other: Property): Property = {
+
+      val partition = DisjointSets[Option[Node]](None)
+
+      def computePartition(on1: Option[Node], on2: Option[Node]): Unit = {        
+        if (! partition.inSamePartition(on1, on2)) {          
+          partition.union(on1, on2)          
+          (on1, on2) match {
+            case (Some(n1), Some(n2)) =>
+              for ((f, n) <- edges(n1); if other.nodeType(n2).isDefined ) computePartition(Some(n), other.edges(n2).get(f))
+              for ((f, n) <- other.edges(n2); if nodeType(n1).isDefined ) computePartition(edges(n1).get(f), Some(n))
+            case (Some(n1), None) =>
+              for ((f, n) <- edges(n1)) computePartition(Some(n), None)
+            case (None, Some(n2)) =>
+              for ((f, n) <- other.edges(n2)) computePartition(None, Some(n))
+            case (None, None) =>
+              throw new IllegalStateException("We should never reach this state")
+            case (_,_) =>
+          }
+        }
+      }
+      
+      def mapWithPartition(n: Option[Node], nullNode: Option[Node]): Option[Node] = {
+        val repr = partition(n)
+        if (repr == nullNode) None else repr
+      }
+     
+      for ((on1, on2) <- labels zip other.labels)      
+        computePartition(on1, on2)
+             
+      val nullNode = partition(None)
+      val newLabels = labels map { mapWithPartition(_,nullNode) }            
+      val newEdges = for ( (src, span) <- edges; reprsrc = partition(Some(src)); if reprsrc != nullNode )
+        yield reprsrc.get -> (for ( (f, tgt) <- span; reprtgt = partition(Some(tgt)); if reprtgt != nullNode) 
+          yield f -> reprtgt.get)
+      new Property(newLabels, newEdges.withDefaultValue(Map()), types)      
+          
+    }
 
     def isEmpty: Boolean = false
 
@@ -491,7 +510,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       }
     }
 
-    def mkString(vars: Seq[String]) = mkString(vars, false)
+    def mkString(vars: Seq[String]) = mkString(vars, true)
 
     def mkString(vars: Seq[String], hashValued: Boolean) = {
       val nodenames = collection.mutable.Map[Node, Int]()

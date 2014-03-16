@@ -42,9 +42,26 @@ trait DisjointSets[T] extends Growable[T] {
   def find(elem: T): Option[T]
 
   /**
+   * Find the representative for a disjoint-set, of which
+   * <code>elem</code> is a member of.
+   * @throws NoSuchElementException if the element is not in any partition
+   */
+  def apply(elem: T): T
+  
+  /**
    * Returns the number of disjoint-sets managed in this data structure.
    */
   def setCount: Int
+  
+  /**
+   * Returns the number of elements in the data-structure
+   */
+  def size: Int
+  
+  /**
+   * Returns whether two elements are in the same partition
+   */
+  def inSamePartition(elem1: T, elem2: T): Boolean
 }
 
 /**

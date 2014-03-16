@@ -34,13 +34,13 @@ import scala.collection.TraversableProxy
  * http://codereview.stackexchange.com/questions/17621/scala-disjoint-sets
  */
 class DisjointSetsImpl[T](initialElements: Seq[T]) extends DisjointSets[T] {
-  
+
   /**
    * A map relating values in T to nodes
    */
   private val nodes: MMap[T, DisjointSetsImpl.Node[T]] = MMap.empty
-  
-  initialElements foreach ( this += _ )
+
+  initialElements foreach (this += _)
 
   def clear = nodes.clear
 
@@ -53,6 +53,8 @@ class DisjointSetsImpl[T](initialElements: Seq[T]) extends DisjointSets[T] {
     this
   }
   
+  def size = nodes.size
+
   private def self = nodes.values.toTraversable
 
   /**
@@ -89,17 +91,22 @@ class DisjointSetsImpl[T](initialElements: Seq[T]) extends DisjointSets[T] {
     }
   }
 
-  /**
-   * Finds the representative for a disjoint-set, of which
-   * <code>elem</code> is a member of.
-   */
-  def find(elem: T): Option[T] = synchronized {
-    nodes.get(elem) match {
-      case Some(node) => Some(node.getRepresentative.elem)
-      case None => None
-    }
+  def find(elem: T): Option[T] = nodes.get(elem) match {
+    case Some(node) => Some(node.getRepresentative.elem)
+    case None => None
   }
 
+  def apply(elem: T) = find(elem).get
+
+  def inSamePartition(elem1: T, elem2: T): Boolean = {
+    val n1 = find(elem1)
+    val n2 = find(elem2)
+    if (n1.isDefined && n2.isDefined)
+      n1.get == n2.get
+    else
+      false
+  }
+  
   /**
    * @inheritdoc
    * This is a non-vital/non-standard operation, so we do
@@ -107,12 +114,14 @@ class DisjointSetsImpl[T](initialElements: Seq[T]) extends DisjointSets[T] {
    * them each time.
    */
   def setCount: Int = nodes.values.count(_.parent.isEmpty)
+  
+  override def toString = nodes.values.mkString(", ") 
 }
 
 object DisjointSetsImpl {
 
   /**
-   * Create an disjoint set with the specified initial elements 
+   * Create an disjoint set with the specified initial elements
    */
   def apply[T](initialElements: T*) = new DisjointSetsImpl[T](initialElements)
 
@@ -131,6 +140,8 @@ object DisjointSetsImpl {
         parent = Some(rep)
         rep
     }
+    
+    override def toString = s"${elem} -${rank}-> ${if (parent.isDefined) parent.get.elem.toString else "X"}"
   }
 }
  

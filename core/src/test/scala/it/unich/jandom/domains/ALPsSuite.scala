@@ -19,7 +19,6 @@
 package it.unich.jandom.domains
 
 import org.scalatest.FunSpec
-import org.scalatest.FunSuite
 import it.unich.jandom.domains.objects.ALPsDomain
 import it.unich.jandom.domains.objects.ObjectModel
 import org.scalatest.FlatSpec
@@ -434,14 +433,16 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
           assert((g1 union g2) >= g1, s"${g1} union ${g2} is ${g1 union g2}")
         }
       }
-      it("has bottom as right neutral element") {
+      it("has bottom as neutral element") {
         for (g <- allgraphs) {
           assert((g union g.bottom) === g)
+          assert((g.bottom union g) === g)
         }
       }
-      it("has bottom as left neutral element") {
+      it("has top as absorbing element") {
         for (g <- allgraphs) {
-          assert((g.bottom union g) === g)
+          assert((g union g.top) === g.top)
+          assert((g.top union g) === g.top)
         }
       }
       it("yields g4union when applied to g4 union g4b") {
@@ -449,6 +450,31 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
         assert((g4 union g4b) === g4union )
       }
     }
-
+    
+    describe("The intersection method") {      
+      it("is idempotent") {
+        for (g <- allgraphs) {
+           assert((g intersection g) === g)
+        }
+      }
+      it("is bigger then operands") {
+        for (g1 <- allgraphs; g2 <- allgraphs; if g1.fiber == g2.fiber) {
+          assert((g1 intersection g2) <= g2, s"${g1} intersection ${g2} is ${g1 intersection g2}")
+          assert((g1 intersection g2) <= g1, s"${g1} intersection ${g2} is ${g1 intersection g2}")
+        }
+      }
+      it("has top as neutral element") {
+        for (g <- allgraphs) {
+          assert((g intersection g.top) === g)
+          assert((g.top intersection g) === g)
+        }
+      }
+      it("has bottom as absorbing element") {
+       for (g <- allgraphs) {
+          assert((g intersection g.bottom) === g.bottom)
+          assert((g.bottom intersection g) === g.bottom)
+        } 
+      }      
+    }
   }
 }
