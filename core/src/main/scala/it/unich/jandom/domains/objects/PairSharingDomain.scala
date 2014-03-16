@@ -110,6 +110,10 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
 
     def narrowing(that: Property) = narrowing(that)
 
+    def addUnknownVariable(t: om.Type) = {
+      new Property(ps, t +: rtypes)
+    }
+    
     def addVariable(t: om.Type) = {
       val ps2 = for (UP(i, j) <- ps; if (i == j)) yield UP(i, dimension)
       new Property(ps ++ ps2, t +: rtypes)

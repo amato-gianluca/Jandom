@@ -114,6 +114,12 @@ class SootFrameObjectDomain(val dom: ObjectDomain[SootObjectModel]) extends Soot
       else
         addUntrackedVariable(tpe)
 
+    def evalUnknown(tpe: Type) =  
+      if (tpe.isInstanceOf[RefType])
+        Property(prop.addUnknownVariable(tpe), tpe :: stack, globals)
+      else
+        addUntrackedVariable(tpe)
+
     def evalCast(t: soot.Type) = Property(this.prop.castVariable(size - 1, t), t :: stack.tail, globals)
 
     def evalLocal(v: Int) =
@@ -172,7 +178,7 @@ class SootFrameObjectDomain(val dom: ObjectDomain[SootObjectModel]) extends Soot
     def assignStaticField(dst: Int, f: SootField) =
       Property(prop.assignVariableToField(dst, f, size - 1).delVariable(), stack.tail, globals)
 
-    def mkString(vars: Seq[String]) = prop.mkString(vars) + "types: " + this.stack.toString
+    def mkString(vars: Seq[String]) = prop.mkString(vars) + " // types: " + this.stack.toString
 
     def union(that: Property) = {
       assert(stack == that.stack)

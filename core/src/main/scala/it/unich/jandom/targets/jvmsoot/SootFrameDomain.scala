@@ -90,6 +90,12 @@ trait SootFrameDomain extends CartesianFiberedDomain {
     def evalNew(tpe: soot.Type): P
 
     /**
+     * Add a new variable of unknown value
+     * @param t the type of the new variable
+     */
+    def evalUnknown(tpe: soot.Type): Property 
+    
+    /**
      * Evaluate  a frame variable `i` and push a copy into the frame
      * @param i the frame variable to evaluate
      */

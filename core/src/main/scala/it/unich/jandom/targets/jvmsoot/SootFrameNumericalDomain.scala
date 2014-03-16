@@ -165,6 +165,8 @@ class SootFrameNumericalDomain(val numdom: NumericalDomain) extends SootFrameDom
     def evalNull = addVariable(NullType.v())
 
     def evalNew(tpe: Type) = addVariable(tpe)
+    
+    def evalUnknown(tpe: Type) = addVariable(tpe)
 
     def evalLocal(v: Int) = {
       if (isNumeric(stack(dimension - 1 - v)))

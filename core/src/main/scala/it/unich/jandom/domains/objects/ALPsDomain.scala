@@ -27,6 +27,8 @@ import it.unich.jandom.utils.DisjointSets
  */
 class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
+  type Node = ALPsDomain.Node
+
   def top(types: Seq[om.Type]) = {
     val labels = for { t <- types } yield if (om.mayShare(t, t)) Some(new Node) else None
     val edges = (for { (t, Some(n)) <- types zip labels } yield {
@@ -49,22 +51,36 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     apply(labels, graphEdges, types)
   }
 
-  /**
-   * This is a node in the ALPs graph.
-   */
-  class Node extends AnyRef {
-    override def toString = s"n${hashCode().toString}"
-  }
-
   type EdgeSet = Map[Node, Map[om.Field, Node]]
 
   type ALPsMorphism = Map[Node, Option[Node]]
 
   case class Property(labels: Seq[Option[Node]], edges: EdgeSet, types: Seq[om.Type]) extends ObjectProperty[Property] {
 
-    type Domain = ALPsDomain.this.type
-
-    def domain = ALPsDomain.this
+    /**
+     * Apply a morphism to a graph
+     */
+    private def applyMorphism(m: ALPsMorphism) = {
+      val newLabels = labels map {
+        case None => None
+        case on @ Some(n) =>
+          val mapped = m.get(n)
+          if (mapped.isDefined)
+            mapped.get
+          else
+            on
+      }
+      val newEdges = for {
+        (src, span) <- edges
+        newsrc = m.getOrElse(src, Some(src))
+        if newsrc.isDefined
+      } yield newsrc.get -> (for {
+        (f, dst) <- span
+        newdst = m.getOrElse(dst, Some(dst))
+        if newdst.isDefined
+      } yield f -> newdst.get)
+      new Property(newLabels, newEdges, types)
+    }
 
     /**
      * Returns the type of a node `n`, the least type of all the variables bound to `n`
@@ -103,6 +119,10 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       }
       s
     }
+
+    type Domain = ALPsDomain.this.type
+
+    def domain = ALPsDomain.this
 
     /**
      * Returns the node of the variable i of the graph, None if the variable is null
@@ -231,42 +251,40 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     }
 
     def intersection(other: Property): Property = {
-
       val partition = DisjointSets[Option[Node]](None)
 
-      def computePartition(on1: Option[Node], on2: Option[Node]): Unit = {        
-        if (! partition.inSamePartition(on1, on2)) {          
-          partition.union(on1, on2)          
+      def computePartition(on1: Option[Node], on2: Option[Node]): Unit = {
+        if (!partition.inSamePartition(on1, on2)) {
+          partition.union(on1, on2)
           (on1, on2) match {
             case (Some(n1), Some(n2)) =>
-              for ((f, n) <- edges(n1); if other.nodeType(n2).isDefined ) computePartition(Some(n), other.edges(n2).get(f))
-              for ((f, n) <- other.edges(n2); if nodeType(n1).isDefined ) computePartition(edges(n1).get(f), Some(n))
+              for ((f, n) <- edges(n1); if other.nodeType(n2).isDefined) computePartition(Some(n), other.edges(n2).get(f))
+              for ((f, n) <- other.edges(n2); if nodeType(n1).isDefined) computePartition(edges(n1).get(f), Some(n))
             case (Some(n1), None) =>
               for ((f, n) <- edges(n1)) computePartition(Some(n), None)
             case (None, Some(n2)) =>
               for ((f, n) <- other.edges(n2)) computePartition(None, Some(n))
             case (None, None) =>
               throw new IllegalStateException("We should never reach this state")
-            case (_,_) =>
+            case (_, _) =>
           }
         }
       }
-      
+
       def mapWithPartition(n: Option[Node], nullNode: Option[Node]): Option[Node] = {
         val repr = partition(n)
         if (repr == nullNode) None else repr
       }
-     
-      for ((on1, on2) <- labels zip other.labels)      
+
+      for ((on1, on2) <- labels zip other.labels)
         computePartition(on1, on2)
-             
       val nullNode = partition(None)
-      val newLabels = labels map { mapWithPartition(_,nullNode) }            
-      val newEdges = for ( (src, span) <- edges; reprsrc = partition(Some(src)); if reprsrc != nullNode )
-        yield reprsrc.get -> (for ( (f, tgt) <- span; reprtgt = partition(Some(tgt)); if reprtgt != nullNode) 
-          yield f -> reprtgt.get)
-      new Property(newLabels, newEdges.withDefaultValue(Map()), types)      
-          
+      val newLabels = labels map { mapWithPartition(_, nullNode) }
+      val newEdges = for ((src, span) <- edges; reprsrc <- partition.find(Some(src)); if reprsrc != nullNode)
+        yield reprsrc.get -> (for ((f, tgt) <- span; reprtgt = partition(Some(tgt)); if reprtgt != nullNode)
+        yield f -> reprtgt.get)
+      new Property(newLabels, newEdges.withDefaultValue(Map()), types)
+
     }
 
     def isEmpty: Boolean = false
@@ -290,30 +308,32 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
     def isBottom: Boolean = labels forall { _.isEmpty }
 
-    def connect(other: Property, common: Int): Property = {
-      // we do not call delVariables since it is not guarantee to preserve node identity
+    def connect(other: Property, common: Int): Property = {      
+      // we do not call delVariables since it is not guaranteed to preserve node identity
       val thisRestricted = new Property(labels.drop(dimension - common), edges, types.drop(dimension - common))
       val otherRestricted = new Property(other.labels.dropRight(other.dimension - common), edges, types.dropRight(other.dimension - common))
-      val Some((dir, m)) = thisRestricted.tryMorphism(otherRestricted)
-      if (dir > 0) throw new IllegalArgumentException("This case is not implemented yet")
-      val newlabels = labels.dropRight(common) ++ (other.labels.drop(common) map { _ flatMap m })
-      val newtypes = types.dropRight(common) ++ other.types.drop(common)
-      val convertedEdges = for {
-        (src, span) <- other.edges
-        newsrc = m.getOrElse(src, Some(src))
-        if newsrc.isDefined
-      } yield newsrc.get -> (for {
-        (f, dst) <- span
-        newdst = m.getOrElse(dst, Some(dst))
-        if newdst.isDefined
-      } yield f -> newdst.get)
-      val newedges = edges ++ convertedEdges
-      new Property(newlabels, newedges, newtypes)
+      val intersection = thisRestricted intersection otherRestricted
+
+      // the following 4 operation could be performed during intersection
+      val Some((dir1, mthis)) = thisRestricted.tryMorphism(intersection)
+      val Some((dir2, mother)) = otherRestricted.tryMorphism(intersection)
+      assert(dir1 >= 0 && dir2 >= 0)
+      val Property(newLabels1, newEdges1, _) = this.applyMorphism(mthis)
+      val Property(newLabels2, newEdges2, _) = other.applyMorphism(mother)
+
+      val p = Property(newLabels1.dropRight(common) ++ newLabels2.drop(common),
+        (newEdges1 ++ newEdges2).withDefaultValue(Map()), types)
+      println(p)
+      p
     }
 
     def fiber = types
 
     def dimension = labels.size
+
+    def addUnknownVariable(t: om.Type): Property = {
+      new Property(labels :+ None, edges, types :+ t)
+    }
 
     def addFreshVariable(t: om.Type): Property = {
       val n = new Node
@@ -510,7 +530,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       }
     }
 
-    def mkString(vars: Seq[String]) = mkString(vars, true)
+    def mkString(vars: Seq[String]) = mkString(vars, false)
 
     def mkString(vars: Seq[String], hashValued: Boolean) = {
       val nodenames = collection.mutable.Map[Node, Int]()
@@ -530,5 +550,12 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 }
 
 object ALPsDomain extends ObjectDomainFactory {
+  /**
+   * This is a node in the ALPs graph.
+   */
+  class Node extends AnyRef {
+    override def toString = s"n${hashCode().toString}"
+  }
+
   def apply[OM <: ObjectModel](om: OM) = new ALPsDomain(om)
 }

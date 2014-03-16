@@ -166,7 +166,7 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
       val n2 = new dom.Node
       dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2)), 3 :+ om.tsub)
     }
-     val g4union = {
+    val g4union = {
       val n0 = new dom.Node
       val n1 = new dom.Node
       val n2 = new dom.Node
@@ -446,15 +446,15 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
         }
       }
       it("yields g4union when applied to g4 union g4b") {
-        assert((g4b union g4) === g4union )
-        assert((g4 union g4b) === g4union )
+        assert((g4b union g4) === g4union)
+        assert((g4 union g4b) === g4union)
       }
     }
-    
-    describe("The intersection method") {      
-      it("is idempotent") {
+
+    describe("The intersection method") {
+     it("is idempotent") {
         for (g <- allgraphs) {
-           assert((g intersection g) === g)
+          assert((g intersection g) === g)
         }
       }
       it("is bigger then operands") {
@@ -470,11 +470,28 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
         }
       }
       it("has bottom as absorbing element") {
-       for (g <- allgraphs) {
+        for (g <- allgraphs) {
           assert((g intersection g.bottom) === g.bottom)
           assert((g.bottom intersection g) === g.bottom)
-        } 
-      }      
+        }
+      }
+    }
+    
+    describe("The connect method") {      
+      it("is idempotent when applied to all dimensions") {
+        for (g <- allgraphs) {
+          assert ( g.connect(g,g.dimension) === g )
+        }
+      }
+            
+      it("passes test1") {
+        val n0 = new dom.Node
+        val n1 = new dom.Node
+        val n2 = new dom.Node
+        val g1 = dom(Seq(Some(n0), Some(n0), Some(n1)), Seq(), 3)
+        val g2 = dom(Seq(Some(n2)), Seq(), 1)
+        assert (g1.connect(g2,1) === g1)
+      }
     }
   }
 }

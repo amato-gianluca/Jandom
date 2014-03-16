@@ -27,6 +27,8 @@ import it.unich.jandom.domains.objects.ObjectModel
 class SootObjectModel(cra: SootClassReachableAnalysis) extends ObjectModel {
    import scala.collection.JavaConversions._
 
+   val hierarchy = cra.scene.getOrMakeFastHierarchy() 
+   
    type Type = soot.Type
    type Field = soot.SootField
    def mayShare(i: Type, j: Type) =
@@ -42,5 +44,5 @@ class SootObjectModel(cra: SootClassReachableAnalysis) extends ObjectModel {
 
    def typeOf(f: Field) = f.getType()
 
-   def lt(t1: Type, t2: Type) = ???
+   def lt(t1: Type, t2: Type) = hierarchy.canStoreType(t1, t2)
 }

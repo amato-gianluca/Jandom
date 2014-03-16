@@ -50,6 +50,13 @@ trait ObjectDomain[OM <: ObjectModel] extends CartesianFiberedDomain {
     this: P =>
 
     /**
+     * Add a new variable. The new variable may be in whatever relationship with the 
+     * old ones.
+     * @param t the type of the new variable
+     */
+    def addUnknownVariable(t: om.Type): Property
+    
+    /**
      * Add a new non-null variable which does not share with any other variable.
      * @param t the type of the new variable
      */
