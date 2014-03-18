@@ -184,14 +184,12 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
     val g5 = {
       val n0 = new dom.Node
       val n1 = new dom.Node
-      val n2 = new dom.Node
-      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n1, 'a', n1), (n1, 'b', n2)), 4)
+      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', new dom.Node), (n1, 'a', n1), (n1, 'b', new dom.Node)), 4)
     }
     val g5big = {
       val n0 = new dom.Node
       val n1 = new dom.Node
-      val n2 = new dom.Node
-      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n1, 'a', new dom.Node), (n1, 'b', n2)), 4)
+      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', new dom.Node), (n1, 'a', new dom.Node), (n1, 'b', new dom.Node)), 4)
     }
     val bot4 = dom.bottom(4)
     val top4 = dom.top(4)
@@ -338,9 +336,9 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
 
     describe("The assignVariableToField method") {
       it("gives bottom when the dst variable is definitively null") {
-        assert(g1.assignVariableToField(3, 2, 'a').isBottom)
-      }
-      it("it maps  g1.assignVariableToField(1, 'b', 2) to g2") {
+        assert(g1.assignVariableToField(3, 'a',1).isBottom)
+      }      
+      it("it maps  g1.assignVariableToField(1, 'b', 3) to g2") {
         assert(g1.assignVariableToField(1, 'b', 3) === g2)
       }
       it("it maps  g1.assignVariableToField(2, 'a', 2) to g5") {
@@ -477,21 +475,25 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
       }
     }
     
-    describe("The connect method") {      
-      it("is idempotent when applied to all dimensions") {
-        for (g <- allgraphs) {
-          assert ( g.connect(g,g.dimension) === g )
-        }
-      }
-            
+    describe("The connect method") {
       it("passes test1") {
         val n0 = new dom.Node
         val n1 = new dom.Node
         val n2 = new dom.Node
         val g1 = dom(Seq(Some(n0), Some(n0), Some(n1)), Seq(), 3)
         val g2 = dom(Seq(Some(n2)), Seq(), 1)
-        assert (g1.connect(g2,1) === g1)
-      }
+        assert (g1.connect(g2,1) === g1.delVariable(2))
+      }         
+      it("passes test2") {
+        val n0 = new dom.Node
+        val n1 = new dom.Node
+        val n2 = new dom.Node
+        val n3 = new dom.Node
+        val g1 = dom(Seq(Some(n0), Some(n0), Some(n1)), Seq((n0,'a',new dom.Node)), 3)
+        val g2 = dom(Seq(Some(n2),Some(n3)), Seq((n3, 'b',n2)), 2)
+        val g3 = dom(Seq(Some(n0), Some(n0), Some(n3)), Seq((n0,'a',new dom.Node), (n0,'b',new dom.Node), (n3,'b',n2)), 3) 
+        assert (g1.connect(g2,1) === g3)
+      }  
     }
   }
 }

@@ -19,6 +19,7 @@
 package it.unich.jandom.domains.objects
 
 import scala.collection.breakOut
+import scala.collection.Set
 import it.unich.jandom.utils.DisjointSets
 
 /**
@@ -118,6 +119,56 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         }
       }
       s
+    }
+
+    /**
+     * Returns the set of 1st level nodes which may be aliased to a
+     * node of type t.
+     */
+    private def nodesOfType(t: om.Type) = {
+      val nodes: Set[Node] = (for {
+        (on, nt) <- labels zip types
+        n <- on
+        if (t == nt || om.lt(t, nt) || om.lt(nt, nt))
+      } yield n)(collection.breakOut)
+      nodes
+    }
+
+    /**
+     * Returns the set of 1st level nodes which contains the
+     * provided field.
+     */
+    private def nodesWithField(field: om.Field) = {
+      val nodes: Set[Node] = (for {
+        (on, nt) <- labels zip types
+        n <- on
+        if om.fieldsOf(nt) contains field
+      } yield n)(collection.breakOut)
+      nodes
+    }
+
+    /**
+     * Returns a full span for a node of type t
+     */
+    private def fullSpan(t: om.Type) = {
+      (for (f <- om.fieldsOf(t)) yield f -> new Node)(collection.breakOut): Map[om.Field, Node]
+    }
+
+    /**
+     * Determines whether we may reach a 2^ level node from a
+     * given node.
+     */
+    private def escape(n: Node): Boolean = escape(n, nodeType(n))
+
+    /**
+     * Determines whether we may reach a 2^ level node from a
+     * given node, assuming we known its nodeType
+     */
+    private def escape(n: Node, t: Option[om.Type]): Boolean = {
+      t match {
+        case None => false
+        case Some(t) => !(edges(n).keySet intersect om.fieldsOf(t)).isEmpty
+      }
     }
 
     type Domain = ALPsDomain.this.type
@@ -308,28 +359,35 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
     def isBottom: Boolean = labels forall { _.isEmpty }
 
-    def connect(other: Property, common: Int): Property = {      
-      // we do not call delVariables since it is not guaranteed to preserve node identity
-      val thisRestricted = new Property(labels.drop(dimension - common), edges, types.drop(dimension - common))
-      val otherRestricted = new Property(other.labels.dropRight(other.dimension - common), edges, types.dropRight(other.dimension - common))
-      val intersection = thisRestricted intersection otherRestricted
+    def connect(other: Property, common: Int): Property = {
+      // we check wether it is possible to reach the non-common variable in this from the common
+      // variables. Here sharing might help.
+      val escapeFromCommon = (labels zip types) exists { case (Some(n), t) => escape(n, Some(t)); case _ => false }
 
-      // the following 4 operation could be performed during intersection
-      val Some((dir1, mthis)) = thisRestricted.tryMorphism(intersection)
-      val Some((dir2, mother)) = otherRestricted.tryMorphism(intersection)
-      assert(dir1 >= 0 && dir2 >= 0)
-      val Property(newLabels1, newEdges1, _) = this.applyMorphism(mthis)
-      val Property(newLabels2, newEdges2, _) = other.applyMorphism(mother)
-
-      val p = Property(newLabels1.dropRight(common) ++ newLabels2.drop(common),
-        (newEdges1 ++ newEdges2).withDefaultValue(Map()), types)
-      println(p)
-      p
+      if (!escapeFromCommon)
+        Property(
+          labels.dropRight(common) ++ other.labels.drop(common),
+          (edges ++ other.edges) withDefaultValue Map(),
+          types.dropRight(common) ++ other.types.drop(common))
+      else {
+        // set of 1st level nodes reachable in the non-common part of this
+        val reachableNodes: Set[Node] = (for (on <- labels; n <- on) yield n)(collection.breakOut)
+        val newedges =
+          for ((src, span) <- edges) yield src ->
+            (if (reachableNodes contains src)
+              fullSpan(nodeType(src).get)
+            else
+              span)
+        new Property(
+          labels.dropRight(common) ++ other.labels.drop(common),
+          (newedges ++ other.edges) withDefaultValue Map(),
+          types.dropRight(common) ++ other.types.drop(common))
+      }
     }
 
     def fiber = types
 
-    def dimension = labels.size
+    def dimension = types.size
 
     def addUnknownVariable(t: om.Type): Property = {
       new Property(labels :+ None, edges, types :+ t)
@@ -366,13 +424,24 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     }
 
     def assignVariableToField(dst: Int, field: om.Field, src: Int): Property = {
-      labelOf(dst) match {
-        case None =>
+      (labelOf(dst), labelOf(src)) match {
+        case (None, _) =>
           bottom
-        case Some(dst) =>
-          val nodesrc = labelOf(src)
-          val newspan = if (nodesrc == None) edges(dst) - field else edges(dst) + (field -> nodesrc.get)
-          Property(labels, edges.updated(dst, newspan), types)
+        case (Some(dstNode), None) =>
+          val newspan = edges(dstNode) - field
+          Property(labels, edges.updated(dstNode, newspan), types)
+        case (Some(dstNode), Some(srcNode)) =>
+          val newspan = edges(dstNode) + (field -> srcNode)
+          // we need to fresh all node which may possibly be reached by dst.field. In the presence of
+          // sharing, we may restrict  possibleAliases using sharing information
+          val possibleAliases = nodesWithField(field)
+          val newedges = for ((n, span) <- edges) yield if (n == dstNode)
+            n -> newspan
+          else if (possibleAliases contains n)
+            n -> span.updated(field, new Node)
+          else
+            n -> span            
+          Property(labels, newedges withDefaultValue Map(), types)
       }
     }
 
@@ -415,7 +484,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
            * @todo We need to repeat here the withDefaultValue option.... we probably should consider rewriting
            * stuff so that we do no need them
            */
-          new Property(newlabels, newedges withDefaultValue (Map()), types)
+          new Property(newlabels, newedges withDefaultValue Map(), types)
       }
     }
 
