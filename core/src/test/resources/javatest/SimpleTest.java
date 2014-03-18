@@ -6,14 +6,27 @@ class A {
 class B {
 }
 
-class ListA {
+interface ListInterface { }
+
+class ListA implements ListInterface {
 	ListA next;
 	A v;
+}
+
+class C extends A {
+	A f1;
+}
+
+class D extends C {
+	B f2;
 }
 
 class Pair {
 	A v;
 	B w;
+}
+
+class K {
 }
 
 public class SimpleTest {
