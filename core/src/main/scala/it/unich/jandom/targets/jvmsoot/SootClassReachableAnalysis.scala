@@ -18,8 +18,8 @@
 
 package it.unich.jandom.targets.jvmsoot
 
+import scala.annotation.tailrec
 import it.unich.jandom.domains.objects.UP
-
 import soot._
 
 /**
@@ -36,34 +36,59 @@ class SootClassReachableAnalysis(val scene: Scene) {
     def compare(x: SootClass, y: SootClass) = x.getNumber() - y.getNumber()
   }
 
+  val fh = scene.getOrMakeFastHierarchy()
+
   var reachable = new scala.collection.mutable.HashMap[SootClass, Set[SootClass]]
   var sharing = new scala.collection.mutable.HashMap[UP[SootClass], Boolean]
+  
+  def getAllSuperClasses(c: soot.SootClass, acc: Seq[soot.SootClass] = Seq()): Seq[soot.SootClass] = {
+    if (c.hasSuperclass())
+      getAllSuperClasses(c.getSuperclass(), c +: acc)
+    else
+      c +: acc
+  }
 
-  private def getClassFromType(tpe: Type): Option[SootClass] = tpe match {
-    case tpe: RefType => Some(tpe.getSootClass())
-    case tpe: ArrayType => getClassFromType(tpe.getElementType())
-    case tpe: AnySubType => getClassFromType(tpe.getBase())
-    case _ => None
+   def getAllSubClasses(klass: soot.SootClass): Set[soot.SootClass] = {
+    val oneLevel = fh.getSubclassesOf(klass).asInstanceOf[java.util.Collection[SootClass]]
+    val allLevels: Set[soot.SootClass] = (oneLevel flatMap getAllSubClasses)(collection.breakOut)
+    allLevels + klass
+  }
+
+   def getAllReferredClasses(tpe: Type): Set[soot.SootClass] = tpe match {
+    case tpe: RefType => getAllSubClasses(tpe.getSootClass())
+    case tpe: ArrayType => getAllSubClasses(soot.RefType.v("java.lang.Object").getSootClass())
+    case tpe: AnySubType => throw new IllegalStateException("Not implemented yet... I do not known what it means")
+    case _ => Set()
   }
 
   /**
-   * Determines all the classes reachables from `klass`. It uses memoization
+   * Determines all the classes reachable from a variable of declared type `klass`. It uses memoization
    * to speed up subsequent calls.
    */
-  def reachablesFrom(klass: SootClass): Set[SootClass] = {
+  def reachablesFrom(klass: SootClass): Set[SootClass] =
+    for {
+      subclass <- getAllSubClasses(klass)
+      reachable <- reachablesFromEffective(subclass)
+    } yield reachable
+
+  /**
+   * Determines all the classes reachable from a variable of effective type `klass`. It uses memoization
+   * to speed up subsequent calls.
+   */
+  def reachablesFromEffective(klass: SootClass): Set[SootClass] = {
     reachable.get(klass) match {
       case Some(klasses) => klasses
       case None =>
         reachable(klass) = Set()
-        val result = for {
-          field <- klass.getFields()
-          refClass = getClassFromType(field.getType())
-          if refClass.isDefined
-          reachableClass <- reachablesFrom(refClass.get)
-        } yield reachableClass
-        val reachableClasses = result.toSet + klass
-        reachable(klass) = reachableClasses
-        reachableClasses
+        val reachableClasses: Set[SootClass] = (for {
+          superclass <- getAllSuperClasses(klass)
+          field <- superclass.getFields()
+          refClass <- getAllReferredClasses(field.getType)
+          reachableClass <- reachablesFromEffective(refClass)
+        } yield reachableClass)(collection.breakOut)
+        val res = reachableClasses + klass
+        reachable(klass) = res
+        res
     }
   }
 

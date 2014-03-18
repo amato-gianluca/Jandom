@@ -19,30 +19,47 @@
 package it.unich.jandom.targets.jvmsoot
 
 import it.unich.jandom.domains.objects.ObjectModel
+import soot.RefType
 
 /**
  * @author Gianluca Amato <gamato@unich.it>
  *
  */
 class SootObjectModel(cra: SootClassReachableAnalysis) extends ObjectModel {
-   import scala.collection.JavaConversions._
+  import scala.collection.JavaConversions._
 
-   val hierarchy = cra.scene.getOrMakeFastHierarchy() 
-   
-   type Type = soot.Type
-   type Field = soot.SootField
-   def mayShare(i: Type, j: Type) =
-     (i,j) match {
-        case (p1: soot.RefType, p2: soot.RefType) => cra.mayShare(p1.getSootClass(), p2.getSootClass())
-        case _ => false
-   }
+  val hierarchy = cra.scene.getOrMakeFastHierarchy()
 
-   def fieldsOf(i: Type) = i match {
-     case i: soot.RefType => i.getSootClass().getFields().toSet
-     case _ => Set()
-   }
+  type Type = soot.Type
+  type Field = soot.SootField
+  def mayShare(i: Type, j: Type) =
+    (i, j) match {
+      case (p1: soot.RefType, p2: soot.RefType) => cra.mayShare(p1.getSootClass(), p2.getSootClass())
+      case _ => false
+    }
 
-   def typeOf(f: Field) = f.getType()
+  def fieldsOf(i: Type) = i match {
+    case i: soot.RefType => fieldsOf(i.getSootClass())
+    case _ => Set()
+  }
 
-   def lt(t1: Type, t2: Type) = hierarchy.canStoreType(t1, t2)
+  private def fieldsOf(c: soot.SootClass): Set[Field] = {
+    if (c.hasSuperclass())
+      fieldsOf(c.getSuperclass()) ++ c.getFields.toSet
+    else
+      c.getFields.toSet
+  }
+
+  def typeOf(f: Field) = f.getType()
+
+  /**
+   * @inheritdoc
+   * For the moment, we consider primitive types to be uncomparable, but I do not know
+   * if it is the correct way to handle this.
+   */
+  def lt(t1: Type, t2: Type) =
+    if (t1.isInstanceOf[soot.RefType] && t2.isInstanceOf[soot.RefType])
+      hierarchy.canStoreType(t1, t2)
+    else
+      t1 == t2
 }

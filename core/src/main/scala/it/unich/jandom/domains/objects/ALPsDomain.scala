@@ -23,7 +23,7 @@ import scala.collection.Set
 import it.unich.jandom.utils.DisjointSets
 
 /**
- * The domain for the ALPs domain.0
+ * The domain for the ALPs domain.
  * @author Gianluca Amato <gamato@unich.it>
  */
 class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {

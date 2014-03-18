@@ -32,26 +32,42 @@ trait ObjectModel {
   type Variable
 
   /**
-   * This is type for built-in types
+   * This is the type for types
    */
   type Type
 
   /**
-   * This is the type for fields
+   * This is the type for fields. Two fields are the same only if they are defined
+   * in the same point of the type hierarchy.
    */
   type Field
 
+  /**
+   * This returns true if two variable of type src and tgt may share
+   */
   def mayShare(src: Type, tgt: Type): Boolean
 
+  /**
+   * It returns the set of all the fields of the type `t`. 
+   */
   def fieldsOf(t: Type): Set[Field]
 
+  /**
+   * It returns the type of the object pointed by type `t`
+   */
   def typeOf(f: Field): Type
 
+  /**
+   * It returns true if `t1` is a subtype of `t2`
+   */
   def lt(t1: Type, t2: Type): Boolean
-
-  def min(t1: Type, t2: Type) =
+  
+  /**
+   * It returns the minimum between t1 and t2 if it exists, and returns
+   * an exception otherwise
+   */
+  def min(t1: Type, t2: Type) = 
     if (lt(t1, t2)) t1
     else if (lt(t2, t1)) t2
-    else if (t1 == t2) t1
     else throw new IllegalArgumentException("The min method of ObjectModel only accepts comparable types")
 }
