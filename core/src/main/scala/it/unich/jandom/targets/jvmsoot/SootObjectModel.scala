@@ -57,7 +57,7 @@ class SootObjectModel(cra: SootClassReachableAnalysis) extends ObjectModel {
    * For the moment, we consider primitive types to be uncomparable, but I do not know
    * if it is the correct way to handle this.
    */
-  def lt(t1: Type, t2: Type) =
+  def lteq(t1: Type, t2: Type) =
     if (t1.isInstanceOf[soot.RefType] && t2.isInstanceOf[soot.RefType])
       hierarchy.canStoreType(t1, t2)
     else

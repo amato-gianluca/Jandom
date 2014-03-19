@@ -48,7 +48,7 @@ trait ObjectModel {
   def mayShare(src: Type, tgt: Type): Boolean
 
   /**
-   * It returns the set of all the fields of the type `t`. 
+   * It returns the set of all the fields of the type `t`.
    */
   def fieldsOf(t: Type): Set[Field]
 
@@ -58,16 +58,17 @@ trait ObjectModel {
   def typeOf(f: Field): Type
 
   /**
-   * It returns true if `t1` is a subtype of `t2`
+   * It returns true if `t1` is a subtype of `t2`. Each type is a subtype
+   * of itself.
    */
-  def lt(t1: Type, t2: Type): Boolean
-  
+  def lteq(t1: Type, t2: Type): Boolean
+
   /**
    * It returns the minimum between t1 and t2 if it exists, and returns
-   * an exception otherwise
+   * an exception otherwise.
    */
-  def min(t1: Type, t2: Type) = 
-    if (lt(t1, t2)) t1
-    else if (lt(t2, t1)) t2
+  def min(t1: Type, t2: Type) =
+    if (lteq(t1, t2)) t1
+    else if (lteq(t2, t1)) t2
     else throw new IllegalArgumentException("The min method of ObjectModel only accepts comparable types")
 }

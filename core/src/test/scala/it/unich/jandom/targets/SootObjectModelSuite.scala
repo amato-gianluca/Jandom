@@ -30,7 +30,7 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
   scene.loadClassAndSupport("javatest.ListA").setApplicationClass()
   scene.loadClassAndSupport("javatest.Pair").setApplicationClass()
   scene.loadClassAndSupport("javatest.K").setApplicationClass()
- 
+
   val cra = new SootClassReachableAnalysis(scene)
   val om = new SootObjectModel(cra)
 
@@ -47,39 +47,39 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
   val primitiveInt = IntType.v()
   val primitiveByte = ByteType.v()
   val someTypes = Seq(classA, classB, classListA, classPair, classC, classD, classObject, interfaceList,
-       primitiveInt, primitiveByte, classK)  
-  
+       primitiveInt, primitiveByte, classK)
+
   describe("it passes the following tests") {
     it("Classes have correct number of fields") {
-      assert ( om.fieldsOf(classPair).size === 2 ) 
+      assert ( om.fieldsOf(classPair).size === 2 )
       assert ( om.fieldsOf(classC).size === 1 )
-      assert ( om.fieldsOf(classD).size === 2 )    
-      assert ( om.fieldsOf(primitiveInt).size === 0 ) 
+      assert ( om.fieldsOf(classD).size === 2 )
+      assert ( om.fieldsOf(primitiveInt).size === 0 )
       assert ( om.fieldsOf(primitiveByte).size === 0 )
       assert ( om.fieldsOf(classA).size === 0 )
     }
     it("Subype relation is correct") {
-      assert ( om.lt(classD,classA) )
-      assert ( om.lt(classC,classA) )
-      assert ( om.lt(classD,classC) )
-      assert ( om.lt(classListA,interfaceList) )
-    }    
+      assert ( om.lteq(classD,classA) )
+      assert ( om.lteq(classC,classA) )
+      assert ( om.lteq(classD,classC) )
+      assert ( om.lteq(classListA,interfaceList) )
+    }
     it("Fields have the right types") {
       assert ( om.fieldsOf(classPair).map { om.typeOf(_) } === Set(classA,classB) )
       assert ( om.fieldsOf(classD).map { om.typeOf(_) } === Set(classA,classB) )
     }
     it("Field of the same name in different classes are different") {
       val f1 = classPair.getSootClass().getField("v",classA)
-      val f2 = classListA.getSootClass().getField("v",classA)      
+      val f2 = classListA.getSootClass().getField("v",classA)
       assert (f1 != f2)
-      assert ( (om.fieldsOf(classPair) intersect om.fieldsOf(classListA)).isEmpty )        
+      assert ( (om.fieldsOf(classPair) intersect om.fieldsOf(classListA)).isEmpty )
     }
     it("Possible sharing information is correct") {
       assert (om.mayShare(classA, classA))
       assert (! om.mayShare(classA, classK))
       assert (om.mayShare(classA, classListA))
       assert (om.mayShare(classA, classPair))
-      assert (om.mayShare(classB, classPair))            
+      assert (om.mayShare(classB, classPair))
       assert (om.mayShare(classC, classA))
       assert (om.mayShare(classD, classA))
       assert (om.mayShare(classA, classC))

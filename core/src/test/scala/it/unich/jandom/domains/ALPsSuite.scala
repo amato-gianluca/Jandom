@@ -82,7 +82,7 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
         case 'c' => tsub
         case _ => tother
       }
-      def lt(t1: Type, t2: Type) = t1 == this.tsub && t2 == this.tsuper
+      def lteq(t1: Type, t2: Type) = t1 == this.tsub || t2 == this.tsuper
     }
 
     val dom = ALPsDomain(TrivialObjectModel)
@@ -337,7 +337,7 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
     describe("The assignVariableToField method") {
       it("gives bottom when the dst variable is definitively null") {
         assert(g1.assignVariableToField(3, 'a',1).isBottom)
-      }      
+      }
       it("it maps  g1.assignVariableToField(1, 'b', 3) to g2") {
         assert(g1.assignVariableToField(1, 'b', 3) === g2)
       }
@@ -474,7 +474,7 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
         }
       }
     }
-    
+
     describe("The connect method") {
       it("passes test1") {
         val n0 = new dom.Node
@@ -483,7 +483,7 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
         val g1 = dom(Seq(Some(n0), Some(n0), Some(n1)), Seq(), 3)
         val g2 = dom(Seq(Some(n2)), Seq(), 1)
         assert (g1.connect(g2,1) === g1.delVariable(2))
-      }         
+      }
       it("passes test2") {
         val n0 = new dom.Node
         val n1 = new dom.Node
@@ -491,9 +491,9 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
         val n3 = new dom.Node
         val g1 = dom(Seq(Some(n0), Some(n0), Some(n1)), Seq((n0,'a',new dom.Node)), 3)
         val g2 = dom(Seq(Some(n2),Some(n3)), Seq((n3, 'b',n2)), 2)
-        val g3 = dom(Seq(Some(n0), Some(n0), Some(n3)), Seq((n0,'a',new dom.Node), (n0,'b',new dom.Node), (n3,'b',n2)), 3) 
+        val g3 = dom(Seq(Some(n0), Some(n0), Some(n3)), Seq((n0,'a',new dom.Node), (n0,'b',new dom.Node), (n3,'b',n2)), 3)
         assert (g1.connect(g2,1) === g3)
-      }  
+      }
     }
   }
 }

@@ -100,7 +100,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     private def expandSpan(n: Node, t: om.Type) = {
       var span = edges(n)
       val nodet = nodeType(n)
-      if (nodet.isEmpty || om.lt(t, nodet.get))
+      if (nodet.isEmpty || om.lteq(t, nodet.get))
         for (f <- om.fieldsOf(t) -- om.fieldsOf(nodet.get); if !(span isDefinedAt f)) span += f -> new Node
       span
     }
@@ -129,7 +129,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       val nodes: Set[Node] = (for {
         (on, nt) <- labels zip types
         n <- on
-        if (t == nt || om.lt(t, nt) || om.lt(nt, nt))
+        if (t == nt || om.lteq(t, nt) || om.lteq(nt, nt))
       } yield n)(collection.breakOut)
       nodes
     }
@@ -440,7 +440,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
           else if (possibleAliases contains n)
             n -> span.updated(field, new Node)
           else
-            n -> span            
+            n -> span
           Property(labels, newedges withDefaultValue Map(), types)
       }
     }

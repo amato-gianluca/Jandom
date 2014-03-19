@@ -35,7 +35,7 @@ class PairSharingSuite extends FunSuite {
     def mayShare(src: Type, tgt: Type) = true
     def fieldsOf(t: Type) = Set()
     def typeOf(f: Field) = {}
-    def lt(t1: Type, t2: Type) = false
+    def lteq(t1: Type, t2: Type) = true
   }
 
   val dom = PairSharingDomain(TrivialObjectModel)
@@ -168,7 +168,7 @@ class PairSharingSuite extends FunSuite {
       def mayShare(src: Type, tgt: Type) = UP(src,tgt) != UP(0,1)
       def fieldsOf(t: Type) = Set()
       def typeOf(f: Field) = f
-      def lt(t1: Type, t2: Type) = false
+      def lteq(t1: Type, t2: Type) = t1 == t2
     }
 
     val dom = new PairSharingDomain(NonTrivialModel)
