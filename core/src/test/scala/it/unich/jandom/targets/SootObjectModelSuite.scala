@@ -21,7 +21,7 @@ package it.unich.jandom.targets
 import soot._
 import it.unich.jandom.domains.ObjectModelSuite
 import it.unich.jandom.targets.jvmsoot.SootObjectModel
-import it.unich.jandom.targets.jvmsoot.SootClassReachableAnalysis
+import it.unich.jandom.targets.jvmsoot.SootTypeReachableAnalysis
 import org.scalatest.FunSpec
 
 class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests {
@@ -30,7 +30,7 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
   scene.loadClassAndSupport("javatest.Pair").setApplicationClass()
   scene.loadClassAndSupport("javatest.K").setApplicationClass()
 
-  val cra = new SootClassReachableAnalysis(scene)
+  val cra = new SootTypeReachableAnalysis(scene)
   val om = new SootObjectModel(cra)
 
   val classA = RefType.v("javatest.A")

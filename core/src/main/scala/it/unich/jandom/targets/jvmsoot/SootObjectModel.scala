@@ -27,7 +27,7 @@ import soot.PrimType
  * An object model for JVM using the Soot library.
  * @author Gianluca Amato <gamato@unich.it>
  */
-class SootObjectModel(cra: SootClassReachableAnalysis) extends ObjectModel {
+class SootObjectModel(cra: SootTypeReachableAnalysis) extends ObjectModel {
   import scala.collection.JavaConversions._
 
   val hierarchy = cra.scene.getOrMakeFastHierarchy()
@@ -36,7 +36,7 @@ class SootObjectModel(cra: SootClassReachableAnalysis) extends ObjectModel {
   type Field = soot.SootField
   def mayShare(i: Type, j: Type) =
     (i, j) match {
-      case (p1: soot.RefType, p2: soot.RefType) => cra.mayShare(p1.getSootClass(), p2.getSootClass())
+      case (p1: soot.RefType, p2: soot.RefType) => cra.mayShare(p1, p2)
       case _ => false
     }
 

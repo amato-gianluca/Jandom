@@ -37,7 +37,7 @@ class JVMSootSuite extends FunSuite with SootTests {
   import scala.collection.JavaConversions._
 
   val c = scene.loadClassAndSupport("javatest.SimpleTest")
-  val classAnalysis = new SootClassReachableAnalysis(scene)
+  val classAnalysis = new SootTypeReachableAnalysis(scene)
   val om = new SootObjectModel(classAnalysis)
   val psdom = new PairSharingDomain(om)
 

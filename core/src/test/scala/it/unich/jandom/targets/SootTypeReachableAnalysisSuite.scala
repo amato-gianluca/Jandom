@@ -24,18 +24,19 @@ package it.unich.jandom.targets
 
 import org.scalatest.FunSuite
 
-import it.unich.jandom.targets.jvmsoot.SootClassReachableAnalysis
+import it.unich.jandom.targets.jvmsoot.SootTypeReachableAnalysis
 
 import soot._
 
-class ClassReachableAnalysisSuite extends FunSuite {
+class SootTypeReachableAnalysisSuite extends FunSuite {
   val scene = Scene.v()
-  val klassA = scene.loadClassAndSupport("javatest.A")
-  val klassB = scene.loadClassAndSupport("javatest.B")
-  val klassListA = scene.loadClassAndSupport("javatest.ListA")
-  val klassPair = scene.loadClassAndSupport("javatest.Pair")
+  val klassA = RefType.v(scene.loadClassAndSupport("javatest.A"))
+  val klassB = RefType.v(scene.loadClassAndSupport("javatest.B"))
+  val klassS1 = RefType.v(scene.loadClassAndSupport("javatest.S1"))
+  val klassListA = RefType.v(scene.loadClassAndSupport("javatest.ListA"))
+  val klassPair = RefType.v(scene.loadClassAndSupport("javatest.Pair"))
 
-  val analysis = new SootClassReachableAnalysis(scene)
+  val analysis = new SootTypeReachableAnalysis(scene)
 
   test("Test class reachability") {
     expectResult(Set(klassA))(analysis.reachablesFrom(klassA))

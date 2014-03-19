@@ -19,7 +19,7 @@
 package it.unich.jandom.domains.objects
 
 import scala.collection.immutable.Range
-import it.unich.jandom.targets.jvmsoot.SootClassReachableAnalysis
+import it.unich.jandom.targets.jvmsoot.SootTypeReachableAnalysis
 
 /**
  * This is the implementation of the pair sharing domain in [Spoto and Secci].

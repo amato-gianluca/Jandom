@@ -204,7 +204,7 @@ class SootEditorPane(val frame: MainFrame) extends BorderPanel with TargetPane {
         try {
           val numericalDomain = frame.parametersPane.selectedNumericalDomain
           val objectDomain = frame.parametersPane.selectedObjectDomain
-          val klassAnalysis = new SootClassReachableAnalysis(sootScene)
+          val klassAnalysis = new SootTypeReachableAnalysis(sootScene)
           val om = new SootObjectModel(klassAnalysis)
           val sootDomain = if (anGroup.selected == Some(radioNumerical))
             new SootFrameNumericalDomain(numericalDomain)

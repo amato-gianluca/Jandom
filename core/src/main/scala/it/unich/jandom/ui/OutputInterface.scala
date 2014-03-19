@@ -22,7 +22,7 @@ import soot.Scene
 import it.unich.jandom.targets.jvmsoot.BafMethod
 import it.unich.jandom.domains.numerical.NumericalDomain
 import it.unich.jandom.domains.objects.ObjectDomain
-import it.unich.jandom.targets.jvmsoot.SootClassReachableAnalysis
+import it.unich.jandom.targets.jvmsoot.SootTypeReachableAnalysis
 import it.unich.jandom.targets.jvmsoot.SootFrameDomain
 import it.unich.jandom.targets.jvmsoot.SootFrameNumericalDomain
 import it.unich.jandom.targets.jvmsoot.SootFrameObjectDomain
@@ -140,10 +140,10 @@ def getAnalysisTypeTip = "Choose between an analysis of numerical properties or 
   private def analyze[T<:SootCFG[T, Block]](method: SootCFG[T, Block], domain: Any, wideningIndex: Int,
 		  	   narrowingIndex: Int, delay:Int, debug: Boolean):String =  {
       try {
-        val sootScene = Scene.v()
-        sootScene.loadBasicClasses()
-        val klassAnalysis = new SootClassReachableAnalysis(sootScene)
-        val om = new SootObjectModel(klassAnalysis)
+       val sootScene = Scene.v()
+       sootScene.loadBasicClasses()
+       val klassAnalysis = new SootTypeReachableAnalysis(sootScene)
+       val om = new SootObjectModel(klassAnalysis)
   	    val sootDomain:SootFrameDomain = domain match {
   	  		case domain:NumericalDomain => new SootFrameNumericalDomain(domain)
   	  		case domain:ObjectDomainFactory => new SootFrameObjectDomain(domain(om))
