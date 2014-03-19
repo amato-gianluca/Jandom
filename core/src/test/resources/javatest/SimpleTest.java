@@ -13,11 +13,14 @@ class ListA implements ListInterface {
 	A v;
 }
 
-class C extends A {
+class S1 {
+}
+
+class S2 extends S1 {
 	A f1;
 }
 
-class D extends C {
+class S3 extends S2 {
 	B f2;
 }
 

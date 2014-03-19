@@ -24,9 +24,8 @@ import it.unich.jandom.targets.jvmsoot.SootObjectModel
 import it.unich.jandom.targets.jvmsoot.SootClassReachableAnalysis
 import org.scalatest.FunSpec
 
-
 class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests {
-  scene.loadClassAndSupport("javatest.D").setApplicationClass()
+  scene.loadClassAndSupport("javatest.S3").setApplicationClass()
   scene.loadClassAndSupport("javatest.ListA").setApplicationClass()
   scene.loadClassAndSupport("javatest.Pair").setApplicationClass()
   scene.loadClassAndSupport("javatest.K").setApplicationClass()
@@ -36,8 +35,9 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
 
   val classA = RefType.v("javatest.A")
   val classB = RefType.v("javatest.B")
-  val classC = RefType.v("javatest.C")
-  val classD = RefType.v("javatest.D")
+  val classS1 = RefType.v("javatest.S1")
+  val classS2 = RefType.v("javatest.S2")
+  val classS3 = RefType.v("javatest.S3")
   val classK = RefType.v("javatest.K")
 
   val classPair = RefType.v("javatest.Pair")
@@ -46,27 +46,27 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
   val interfaceList = RefType.v("javatest.ListInterface")
   val primitiveInt = IntType.v()
   val primitiveByte = ByteType.v()
-  val someTypes = Seq(classA, classB, classListA, classPair, classC, classD, classObject, interfaceList,
+  val someTypes = Seq(classA, classB, classListA, classPair, classS2, classS3, classObject, interfaceList,
        primitiveInt, primitiveByte, classK)
 
   describe("it passes the following tests") {
     it("Classes have correct number of fields") {
       assert ( om.fieldsOf(classPair).size === 2 )
-      assert ( om.fieldsOf(classC).size === 1 )
-      assert ( om.fieldsOf(classD).size === 2 )
+      assert ( om.fieldsOf(classS2).size === 1 )
+      assert ( om.fieldsOf(classS3).size === 2 )
       assert ( om.fieldsOf(primitiveInt).size === 0 )
       assert ( om.fieldsOf(primitiveByte).size === 0 )
       assert ( om.fieldsOf(classA).size === 0 )
     }
     it("Subype relation is correct") {
-      assert ( om.lteq(classD,classA) )
-      assert ( om.lteq(classC,classA) )
-      assert ( om.lteq(classD,classC) )
+      assert ( om.lteq(classS3,classS1) )
+      assert ( om.lteq(classS2,classS1) )
+      assert ( om.lteq(classS3,classS2) )
       assert ( om.lteq(classListA,interfaceList) )
     }
     it("Fields have the right types") {
       assert ( om.fieldsOf(classPair).map { om.typeOf(_) } === Set(classA,classB) )
-      assert ( om.fieldsOf(classD).map { om.typeOf(_) } === Set(classA,classB) )
+      assert ( om.fieldsOf(classS3).map { om.typeOf(_) } === Set(classA,classB) )
     }
     it("Field of the same name in different classes are different") {
       val f1 = classPair.getSootClass().getField("v",classA)
@@ -80,10 +80,10 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
       assert (om.mayShare(classA, classListA))
       assert (om.mayShare(classA, classPair))
       assert (om.mayShare(classB, classPair))
-      assert (om.mayShare(classC, classA))
-      assert (om.mayShare(classD, classA))
-      assert (om.mayShare(classA, classC))
-      assert (om.mayShare(classA, classD))
+      assert (om.mayShare(classS2, classA))
+      assert (om.mayShare(classS3, classA))
+      assert (om.mayShare(classA, classS2))
+      assert (om.mayShare(classA, classS3))
       // TODO deal with interfaces
       // assert (om.mayShare(interfaceList, interfaceList))
       // assert (om.mayShare(interfaceList, classListA))
