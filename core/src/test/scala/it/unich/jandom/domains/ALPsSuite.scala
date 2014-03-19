@@ -62,7 +62,7 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
 
   describe("With the trivial object model") {
 
-    object TrivialObjectModel extends ObjectModel {
+    object TrivialObjectModel extends ObjectModel with ObjectModel.NoArrays {
       type Type = AnyRef
       type Field = Char
 
@@ -83,6 +83,7 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
         case _ => tother
       }
       def lteq(t1: Type, t2: Type) = t1 == this.tsub || t2 == this.tsuper
+      def isPrimitive(t: Type) = false
     }
 
     val dom = ALPsDomain(TrivialObjectModel)

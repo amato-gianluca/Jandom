@@ -29,16 +29,7 @@ import org.scalatest.FunSuite
 class PairSharingSuite extends FunSuite {
   import scala.language.implicitConversions
 
-  object TrivialObjectModel extends ObjectModel {
-    type Type = Unit
-    type Field = Int
-    def mayShare(src: Type, tgt: Type) = true
-    def fieldsOf(t: Type) = Set()
-    def typeOf(f: Field) = {}
-    def lteq(t1: Type, t2: Type) = true
-  }
-
-  val dom = PairSharingDomain(TrivialObjectModel)
+  val dom = PairSharingDomain(ObjectModel.Trivial)
 
   implicit def sizeToTypes(size: Int) = Seq.fill(size)(())
 
@@ -162,13 +153,14 @@ class PairSharingSuite extends FunSuite {
   }
 
   test("A non trivial object model") {
-    object NonTrivialModel extends ObjectModel {
+    object NonTrivialModel extends ObjectModel with ObjectModel.NoArrays {
       type Type = Int
       type Field = Int
       def mayShare(src: Type, tgt: Type) = UP(src,tgt) != UP(0,1)
       def fieldsOf(t: Type) = Set()
       def typeOf(f: Field) = f
       def lteq(t1: Type, t2: Type) = t1 == t2
+      def isPrimitive(t: Type) = false
     }
 
     val dom = new PairSharingDomain(NonTrivialModel)

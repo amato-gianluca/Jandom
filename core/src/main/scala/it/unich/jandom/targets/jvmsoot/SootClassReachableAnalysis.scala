@@ -1,5 +1,5 @@
 /**
- * Copyright 2013 Gianluca Amato <gamato@unich.it>
+ * Copyright 2013, 2014 Gianluca Amato <gamato@unich.it>
  *
  * This file is part of JANDOM: JVM-based Analyzer for Numerical DOMains
  * JANDOM is free software: you can redistribute it and/or modify
@@ -18,8 +18,10 @@
 
 package it.unich.jandom.targets.jvmsoot
 
-import scala.annotation.tailrec
+import scala.collection.mutable
+
 import it.unich.jandom.domains.objects.UP
+
 import soot._
 
 /**
@@ -27,8 +29,8 @@ import soot._
  * and sharing among classes.
  * @param scene the Scene for the analysis
  * @author Gianluca Amato <gamato@unich.it>
- *
  */
+
 class SootClassReachableAnalysis(val scene: Scene) {
   import scala.collection.JavaConversions._
 
@@ -38,23 +40,23 @@ class SootClassReachableAnalysis(val scene: Scene) {
 
   val fh = scene.getOrMakeFastHierarchy()
 
-  var reachable = new scala.collection.mutable.HashMap[SootClass, Set[SootClass]]
-  var sharing = new scala.collection.mutable.HashMap[UP[SootClass], Boolean]
-  
-  def getAllSuperClasses(c: soot.SootClass, acc: Seq[soot.SootClass] = Seq()): Seq[soot.SootClass] = {
+  var reachable = new mutable.HashMap[SootClass, Set[SootClass]]
+  var sharing = new mutable.HashMap[UP[SootClass], Boolean]
+
+  private def getAllSuperClasses(c: soot.SootClass, acc: Seq[soot.SootClass] = Seq()): Seq[soot.SootClass] = {
     if (c.hasSuperclass())
       getAllSuperClasses(c.getSuperclass(), c +: acc)
     else
       c +: acc
   }
 
-   def getAllSubClasses(klass: soot.SootClass): Set[soot.SootClass] = {
+  private def getAllSubClasses(klass: soot.SootClass): Set[soot.SootClass] = {
     val oneLevel = fh.getSubclassesOf(klass).asInstanceOf[java.util.Collection[SootClass]]
     val allLevels: Set[soot.SootClass] = (oneLevel flatMap getAllSubClasses)(collection.breakOut)
     allLevels + klass
   }
 
-   def getAllReferredClasses(tpe: Type): Set[soot.SootClass] = tpe match {
+  private def getAllReferredClasses(tpe: Type): Set[soot.SootClass] = tpe match {
     case tpe: RefType => getAllSubClasses(tpe.getSootClass())
     case tpe: ArrayType => getAllSubClasses(soot.RefType.v("java.lang.Object").getSootClass())
     case tpe: AnySubType => throw new IllegalStateException("Not implemented yet... I do not known what it means")

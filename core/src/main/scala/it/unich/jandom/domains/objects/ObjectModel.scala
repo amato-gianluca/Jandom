@@ -58,6 +58,22 @@ trait ObjectModel {
   def typeOf(f: Field): Type
 
   /**
+   * Returns whether a type is an array
+   */
+  def isArray(t: Type): Boolean
+
+  /**
+   * Returns whether the type is primitive, i.e. it cannot be found in the heap
+   */
+  def isPrimitive(t: Type): Boolean
+
+  /**
+   * Returns the element type of an array, or None
+   * if t is not an array
+   */
+  def getElementType(t: Type): Option[Type]
+
+  /**
    * It returns true if `t1` is a subtype of `t2`. Each type is a subtype
    * of itself.
    */
@@ -71,4 +87,34 @@ trait ObjectModel {
     if (lteq(t1, t2)) t1
     else if (lteq(t2, t1)) t2
     else throw new IllegalArgumentException("The min method of ObjectModel only accepts comparable types")
+}
+
+/**
+ * This is the companion class for ObjectModel. It collects several traits useful in building
+ * trivial object models, especially in test suites.
+ */
+object ObjectModel {
+
+  /**
+   * This is a trivial object model with a single type with no fields and no arrays.
+   */
+  object Trivial extends ObjectModel with NoArrays {
+    self: ObjectModel =>
+    type Type = Unit
+    type Field = Int
+    def mayShare(src: Type, tgt: Type) = true
+    def fieldsOf(t: Type) = Set()
+    def typeOf(f: Field) = {}
+    def lteq(t1: Type, t2: Type) = true
+    def isPrimitive(t: Type) = false
+  }
+
+  /**
+   * This is a trait for object models without arrays
+   */
+  trait NoArrays {
+    self: ObjectModel =>
+    def isArray(t: Type) = false
+    def getElementType(t: Type) = None
+  }
 }

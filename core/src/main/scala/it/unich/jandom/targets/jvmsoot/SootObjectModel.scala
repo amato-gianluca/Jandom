@@ -20,10 +20,12 @@ package it.unich.jandom.targets.jvmsoot
 
 import it.unich.jandom.domains.objects.ObjectModel
 import soot.RefType
+import soot.ArrayType
+import soot.PrimType
 
 /**
+ * An object model for JVM using the Soot library.
  * @author Gianluca Amato <gamato@unich.it>
- *
  */
 class SootObjectModel(cra: SootClassReachableAnalysis) extends ObjectModel {
   import scala.collection.JavaConversions._
@@ -52,9 +54,18 @@ class SootObjectModel(cra: SootClassReachableAnalysis) extends ObjectModel {
 
   def typeOf(f: Field) = f.getType()
 
+  def isArray(t: Type) = t.isInstanceOf[ArrayType]
+
+  def isPrimitive(t: Type) = t.isInstanceOf[PrimType]
+
+  def getElementType(t: Type) = t match {
+    case t: ArrayType => Some(t.getElementType())
+    case _ => None
+  }
+
   /**
    * @inheritdoc
-   * For the moment, we consider primitive types to be uncomparable, but I do not know
+   * For the moment, we consider primitive types to be incomparable, but I do not know
    * if it is the correct way to handle this.
    */
   def lteq(t1: Type, t2: Type) =
