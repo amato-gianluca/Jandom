@@ -50,11 +50,19 @@ class SootTypeReachableAnalysis(val scene: Scene) {
       c +: acc
   }
 
-  private def getAllSubClasses(klass: soot.SootClass): Set[soot.SootClass] = {
+  private def getAllSubClassesNoInterface(klass: soot.SootClass): Set[soot.SootClass] = {
     val oneLevel = fh.getSubclassesOf(klass).asInstanceOf[java.util.Collection[SootClass]]
-    val allLevels: Set[soot.SootClass] = (oneLevel flatMap getAllSubClasses)(collection.breakOut)
+    val allLevels: Set[soot.SootClass] = (oneLevel flatMap getAllSubClassesNoInterface)(collection.breakOut)
     allLevels + klass
   }
+
+  def getAllSubClasses(klass: soot.SootClass): Set[soot.SootClass] =
+    if (klass.isInterface()) {
+      val implementers = fh.getAllImplementersOfInterface(klass).asInstanceOf[java.util.Set[SootClass]].toSet
+      //val subint = fh.getAllSubinterfaces(klass).asInstanceOf[java.util.Set[SootClass]].toSet
+      implementers  
+    } else
+      getAllSubClassesNoInterface(klass)    
 
   private def getAllSubArrays(arr: soot.ArrayType): Set[soot.ArrayType] = {
     arr.baseType match {
@@ -68,18 +76,11 @@ class SootTypeReachableAnalysis(val scene: Scene) {
     }
   }
 
-  private def getMinimalSubTypes(tpe: Type): Set[_ <: soot.RefLikeType] = tpe match {
-    case tpe: RefType => getAllSubClasses(tpe.getSootClass) map { RefType.v(_) }
-    case tpe: ArrayType => getAllSubArrays(tpe)
-    case tpe: PrimType => Set()
-    case _ => throw new IllegalStateException("Not implemented yet... I do not known what it means")
-  }
-
   /**
    * Determines all the classes reachable from a variable of declared type `klass`. It uses memoization
    * to speed up subsequent calls. It only returns an upper crown of all the reachable classes.
    */
-  def reachablesFrom(t: Type): Set[Type] = reachable.get(t) match {
+  private def reachablesFrom(t: Type): Set[Type] = reachable.get(t) match {
     case Some(t) =>
       t
     case None =>
@@ -90,7 +91,7 @@ class SootTypeReachableAnalysis(val scene: Scene) {
             fieldSource <- getAllSuperClasses(t.getSootClass()) ++ getAllSubClasses(t.getSootClass())
             field <- fieldSource.getFields()
             reachableTypes <- reachablesFrom(field.getType)
-          } yield reachableTypes) (collection.breakOut)
+          } yield reachableTypes)(collection.breakOut)
         case t: PrimType =>
           Set()
         case t: ArrayType =>
@@ -104,7 +105,8 @@ class SootTypeReachableAnalysis(val scene: Scene) {
   /**
    * Determines whether the class `tgt` is reachable from `src`.
    */
-  def isReachableFrom(src: RefLikeType, tgt: RefLikeType) = reachablesFrom(src) contains tgt
+  def reachableFrom(src: Type, tgt: Type) =
+    reachablesFrom(src) exists { fh.canStoreType(tgt, _) }
 
   /**
    * Determines whether two class may share. It uses memoization to speed up subsequent calls.

@@ -8,10 +8,21 @@ class B {
 
 interface ListInterface { }
 
+interface ListInterface2 extends ListInterface { }
+
+interface ListInterface3 extends ListInterface { }
+
+interface OtherInterface { }
+
 class ListA implements ListInterface {
 	ListA next;
 	A v;
 }
+
+class ListA2 extends ListA { }
+
+class ListA3 extends ListA implements ListInterface3, OtherInterface { }
+
 
 class S1 {
 }
@@ -22,6 +33,17 @@ class S2 extends S1 {
 
 class S3 extends S2 {
 	B f2;
+}
+
+class S5 extends S3 {
+}
+
+class S4 extends S2 {
+	ListA l;
+}
+
+class R3 {
+	S3 s;
 }
 
 class Pair {
