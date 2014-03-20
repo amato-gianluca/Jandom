@@ -19,7 +19,6 @@
 package it.unich.jandom.domains.objects
 
 import scala.collection.immutable.Range
-import it.unich.jandom.targets.jvmsoot.SootTypeReachableAnalysis
 
 /**
  * This is the implementation of the pair sharing domain in [Spoto and Secci].
@@ -113,7 +112,7 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
     def addUnknownVariable(t: om.Type) = {
       new Property(ps, t +: rtypes)
     }
-    
+
     def addVariable(t: om.Type) = {
       val ps2 = for (UP(i, j) <- ps; if (i == j)) yield UP(i, dimension)
       new Property(ps ++ ps2, t +: rtypes)
@@ -180,7 +179,7 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
       else
         new Property(removed ++ renameVariable(removed, dst, src) + UP(dst, src), rtypes)
     }
-    
+
     def castVariable(v: Int, newtype: om.Type) = this
 
     def assignFieldToVariable(dst: Int, src: Int, field: om.Field) = {

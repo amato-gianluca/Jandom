@@ -21,72 +21,177 @@ package it.unich.jandom.targets
 import soot._
 import it.unich.jandom.domains.ObjectModelSuite
 import it.unich.jandom.targets.jvmsoot.SootObjectModel
-import it.unich.jandom.targets.jvmsoot.SootTypeReachableAnalysis
 import org.scalatest.FunSpec
+import org.scalatest.PrivateMethodTester
 
-class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests {
-  scene.loadClassAndSupport("javatest.S3").setApplicationClass()
-  scene.loadClassAndSupport("javatest.ListA").setApplicationClass()
-  scene.loadClassAndSupport("javatest.Pair").setApplicationClass()
-  scene.loadClassAndSupport("javatest.K").setApplicationClass()
+class SootObjectModelSuite extends FunSpec with ObjectModelSuite with PrivateMethodTester with SootTests {
 
-  val cra = new SootTypeReachableAnalysis(scene)
-  val om = new SootObjectModel(cra)
-
-  val classA = RefType.v("javatest.A")
-  val classB = RefType.v("javatest.B")
-  val classS1 = RefType.v("javatest.S1")
-  val classS2 = RefType.v("javatest.S2")
-  val classS3 = RefType.v("javatest.S3")
-  val classK = RefType.v("javatest.K")
-
-  val classPair = RefType.v("javatest.Pair")
-  val classListA = RefType.v("javatest.ListA")
-  val classObject = RefType.v("java.lang.Object")
-  val interfaceList = RefType.v("javatest.ListInterface")
+  val klassA = RefType.v(scene.loadClassAndSupport("javatest.A"))
+  val klassB = RefType.v(scene.loadClassAndSupport("javatest.B"))
+  val klassListA = RefType.v(scene.loadClassAndSupport("javatest.ListA"))
+  val interfaceList = RefType.v(scene.loadClassAndSupport("javatest.ListInterface"))
+  val interfaceList2 = RefType.v(scene.loadClassAndSupport("javatest.ListInterface2"))
+  val interfaceList3 = RefType.v(scene.loadClassAndSupport("javatest.ListInterface3"))
+  val interfaceOther = RefType.v(scene.loadClassAndSupport("javatest.OtherInterface"))
+  val klassPair = RefType.v(scene.loadClassAndSupport("javatest.Pair"))
+  val klassS1 = RefType.v(scene.loadClassAndSupport("javatest.S1"))
+  val klassS2 = RefType.v(scene.loadClassAndSupport("javatest.S2"))
+  val klassS3 = RefType.v(scene.loadClassAndSupport("javatest.S3"))
+  val klassS4 = RefType.v(scene.loadClassAndSupport("javatest.S4"))
+  val klassS5 = RefType.v(scene.loadClassAndSupport("javatest.S5"))
+  val klassR3 = RefType.v(scene.loadClassAndSupport("javatest.R3"))
+  val klassK = RefType.v(scene.loadClassAndSupport("javatest.K"))
   val primitiveInt = IntType.v()
   val primitiveByte = ByteType.v()
-  val someTypes = Seq(classA, classB, classListA, classPair, classS2, classS3, classObject, interfaceList,
-       primitiveInt, primitiveByte, classK)
+
+  val someTypes = Seq(klassA, klassB, klassListA, klassPair, klassS1, klassS2, klassS3, klassS4,
+    klassS5, klassR3, interfaceList, interfaceList, interfaceList2, interfaceList3, interfaceOther, klassK,
+    primitiveInt, primitiveByte)
+
+  val om = new SootObjectModel(scene)
 
   describe("it passes the following tests") {
     it("Classes have correct number of fields") {
-      assert ( om.fieldsOf(classPair).size === 2 )
-      assert ( om.fieldsOf(classS2).size === 1 )
-      assert ( om.fieldsOf(classS3).size === 2 )
+      assert ( om.fieldsOf(klassPair).size === 2 )
+      assert ( om.fieldsOf(klassS2).size === 1 )
+      assert ( om.fieldsOf(klassS3).size === 2 )
       assert ( om.fieldsOf(primitiveInt).size === 0 )
       assert ( om.fieldsOf(primitiveByte).size === 0 )
-      assert ( om.fieldsOf(classA).size === 0 )
+      assert ( om.fieldsOf(klassA).size === 0 )
     }
     it("Subype relation is correct") {
-      assert ( om.lteq(classS3,classS1) )
-      assert ( om.lteq(classS2,classS1) )
-      assert ( om.lteq(classS3,classS2) )
-      assert ( om.lteq(classListA,interfaceList) )
+      assert ( om.lteq(klassS3, klassS1) )
+      assert ( om.lteq(klassS2, klassS1) )
+      assert ( om.lteq(klassS3, klassS2) )
+      assert ( om.lteq(klassListA, interfaceList) )
     }
     it("Fields have the right types") {
-      assert ( om.fieldsOf(classPair).map { om.typeOf(_) } === Set(classA,classB) )
-      assert ( om.fieldsOf(classS3).map { om.typeOf(_) } === Set(classA,classB) )
+      assert ( om.fieldsOf(klassPair).map { om.typeOf(_) } === Set(klassA, klassB) )
+      assert ( om.fieldsOf(klassS3).map { om.typeOf(_) } === Set(klassA, klassB) )
     }
     it("Field of the same name in different classes are different") {
-      val f1 = classPair.getSootClass().getField("v",classA)
-      val f2 = classListA.getSootClass().getField("v",classA)
+      val f1 = klassPair.getSootClass().getField("v",klassA)
+      val f2 = klassListA.getSootClass().getField("v",klassA)
       assert (f1 != f2)
-      assert ( (om.fieldsOf(classPair) intersect om.fieldsOf(classListA)).isEmpty )
+      assert ( (om.fieldsOf(klassPair) intersect om.fieldsOf(klassListA)).isEmpty )
     }
     it("Possible sharing information is correct") {
-      assert (om.mayShare(classA, classA))
-      assert (! om.mayShare(classA, classK))
-      assert (om.mayShare(classA, classListA))
-      assert (om.mayShare(classA, classPair))
-      assert (om.mayShare(classB, classPair))
-      assert (om.mayShare(classS2, classA))
-      assert (om.mayShare(classS3, classA))
-      assert (om.mayShare(classA, classS2))
-      assert (om.mayShare(classA, classS3))
+      assert (om.mayShare(klassA, klassA))
+      assert (! om.mayShare(klassA, klassK))
+      assert (om.mayShare(klassA, klassListA))
+      assert (om.mayShare(klassA, klassPair))
+      assert (om.mayShare(klassB, klassPair))
+      assert (om.mayShare(klassS2, klassA))
+      assert (om.mayShare(klassS3, klassA))
+      assert (om.mayShare(klassA, klassS2))
+      assert (om.mayShare(klassA, klassS3))
       // TODO deal with interfaces
       // assert (om.mayShare(interfaceList, interfaceList))
       // assert (om.mayShare(interfaceList, classListA))
+    }
+  }
+
+  describe("Crown type reachability") {
+    val reachablesFrom = PrivateMethod[Set[Type]]('reachablesFrom)
+
+    it("contains itself") {
+      for (t <- someTypes) {
+        assert((om invokePrivate reachablesFrom(t)) contains t)
+      }
+    }
+
+    it("is transitive") {
+      for (t1 <- someTypes; t2 <- someTypes; t3 <- someTypes) {
+        val reach1 = om invokePrivate reachablesFrom(t1)
+        val reach2 = om invokePrivate reachablesFrom(t2)
+        if ((reach1 contains t2) && (reach2 contains t3)) {
+          assert((om invokePrivate reachablesFrom(t1)) contains t3)
+        }
+      }
+    }
+
+    it("passes some specific tests") {
+      assertResult(Set(klassA))(om invokePrivate reachablesFrom(klassA))
+      assertResult(Set(klassB))(om invokePrivate reachablesFrom(klassB))
+      assertResult(Set(klassA, klassListA))(om invokePrivate reachablesFrom(klassListA))
+      assertResult(Set(klassA, klassB, klassPair))(om invokePrivate reachablesFrom(klassPair))
+      assertResult(Set(klassS3, klassA, klassB))(om invokePrivate reachablesFrom(klassS3))
+      assertResult(Set(klassS2, klassA, klassB, klassListA))(om invokePrivate reachablesFrom(klassS2))
+      assertResult(Set(klassR3, klassS3, klassA, klassB))(om invokePrivate reachablesFrom(klassR3))
+    }
+  }
+
+  describe("Type reachability") {
+
+    it("is reflexive") {
+      for (t <- someTypes) {
+        assert(om.reachableFrom(t, t))
+      }
+    }
+
+    it("is transitive") {
+      for (t1 <- someTypes; t2 <- someTypes; t3 <- someTypes) {
+        if (om.reachableFrom(t1, t2) && om.reachableFrom(t2, t3)) {
+          assert(om.reachableFrom(t1, t3))
+        }
+      }
+    }
+
+    it("is downward closed on the target") {
+      for (t1 <- someTypes; t2 <- someTypes; t3 <- someTypes) {
+        if (om.reachableFrom(t1, t2) && om.lteq(t3,t2)) {
+          assert(om.reachableFrom(t1, t3))
+        }
+      }
+    }
+
+    it("is upward closed on the source") {
+      for (t1 <- someTypes; t2 <- someTypes; t3 <- someTypes) {
+        if (om.reachableFrom(t1, t2) && om.lteq(t1, t3)) {
+          assert(om.reachableFrom(t3, t2))
+        }
+      }
+    }
+
+    it("passes some specific tests") {
+      assert(om.reachableFrom(klassA, klassA))
+      assert(!om.reachableFrom(klassA, klassB))
+      assert(om.reachableFrom(klassListA, klassA))
+      assert(om.reachableFrom(klassR3, klassS5))
+      assert(!om.reachableFrom(klassR3, klassS4))
+      assert(om.reachableFrom(klassR3, klassS3))
+      assert(!om.reachableFrom(klassR3, klassS2))
+    }
+  }
+
+  describe("Type sharing") {
+    it("is reflexive") {
+      for (t <- someTypes) {
+        assert(om.mayShare(t, t))
+      }
+    }
+
+    it("is symmetric") {
+      for (t1 <- someTypes; t2 <- someTypes; if om.mayShare(t1,t2)) {
+        assert(om.mayShare(t2, t1))
+      }
+    }
+
+    it("is upward closed") {
+      for (t1 <- someTypes; t2 <- someTypes; t3 <- someTypes; if om.mayShare(t1, t2)) {
+        if (om.lteq(t2, t3)) assert(om.mayShare(t1, t3), s"${t1} share with ${t2} and ${t1} <= ${t3}")
+        if (om.lteq(t1, t3)) assert(om.mayShare(t2, t3), s"${t1} share with ${t2} and ${t2} <= ${t3}")
+      }
+    }
+
+    it("passes some specific tests") {
+      assert(om.mayShare(klassA, klassA))
+      assert(!om.mayShare(klassA, klassB))
+      assert(om.mayShare(klassA, klassListA))
+      assert(!om.mayShare(klassB, klassListA))
+      assert(om.mayShare(klassA, klassPair))
+      assert(om.mayShare(klassListA, klassPair))
+      assert(om.mayShare(klassB, klassPair))
     }
   }
 }

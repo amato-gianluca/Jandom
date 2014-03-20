@@ -37,8 +37,7 @@ class JVMSootSuite extends FunSuite with SootTests {
   import scala.collection.JavaConversions._
 
   val c = scene.loadClassAndSupport("javatest.SimpleTest")
-  val classAnalysis = new SootTypeReachableAnalysis(scene)
-  val om = new SootObjectModel(classAnalysis)
+  val om = new SootObjectModel(scene)
   val psdom = new PairSharingDomain(om)
 
   val numdomain = PPLDomain[C_Polyhedron]()
@@ -149,7 +148,6 @@ class JVMSootSuite extends FunSuite with SootTests {
     for ((methodName, ps) <- jimplePairSharingTests) {
       val jmethod = new JimpleMethod(c.getMethodByName(methodName))
       val params = new Parameters[JimpleMethod] {
-        val om = new SootObjectModel(classAnalysis)
         val domain = new SootFrameObjectDomain(psdom)
         io = true
         //debugWriter = new java.io.PrintWriter(System.err)
