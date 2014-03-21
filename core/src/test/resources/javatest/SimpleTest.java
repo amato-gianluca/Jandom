@@ -12,6 +12,8 @@ interface ListInterface2 extends ListInterface { }
 
 interface ListInterface3 extends ListInterface { }
 
+interface ListInterface4 extends ListInterface3 { }
+
 interface OtherInterface { }
 
 class ListA implements ListInterface {
@@ -21,8 +23,9 @@ class ListA implements ListInterface {
 
 class ListA2 extends ListA { }
 
-class ListA3 extends ListA implements ListInterface3, OtherInterface { }
-
+class ListA3 extends ListA implements ListInterface4, OtherInterface {
+	A v2;	
+}
 
 class S1 {
 }
@@ -57,7 +60,7 @@ class K {
 public class SimpleTest {
 	int classX;
 	int classY;
-	int sum;
+	int sum;	
 
 	static void sequential() {
 		int x = 0;

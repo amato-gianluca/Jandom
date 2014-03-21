@@ -27,18 +27,18 @@ trait ObjectModelSuite {
   val om: ObjectModel
   val someTypes: Seq[om.Type]
 
-  describe("the lt operation") {
-    it("is reflteqxive") {
+  describe("The subtype relation") {
+    it("is reflexive") {
       assert { someTypes forall { t => om.lteq(t, t) } }
     }
-    it("it is anti-symmetric") {
+    it("is anti-symmetric") {
       for (t1 <- someTypes; t2 <- someTypes) {
         if (om.lteq(t1, t2) && om.lteq(t2, t1)) {
           assert(t1 === t2)
         }
       }
     }
-    it("it is transitive") {
+    it("is transitive") {
       for (t1 <- someTypes; t2 <- someTypes; t3 <- someTypes) {
         if (om.lteq(t1, t2) && om.lteq(t2, t3)) {
           assert(om.lteq(t2, t3))
@@ -47,7 +47,7 @@ trait ObjectModelSuite {
     }
   }
 
-  describe("the minimum operation") {
+  describe("The minimum operation") {
     it("is idempotent") {
       for (t1 <- someTypes) {
         assert(om.min(t1, t1) == t1)
@@ -66,7 +66,7 @@ trait ObjectModelSuite {
     }
   }
 
-  describe("possiblteq sharing information") {
+  describe("Possible sharing information") {
     it("is symmetric") {
       for (t1 <- someTypes; t2 <- someTypes) {
         if (om.mayShare(t1,t2)) assert (om.mayShare(t2,t1))

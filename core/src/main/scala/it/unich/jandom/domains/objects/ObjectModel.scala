@@ -63,11 +63,6 @@ trait ObjectModel {
   def isArray(t: Type): Boolean
 
   /**
-   * Returns whether the type is primitive, i.e. it cannot be found in the heap
-   */
-  def isPrimitive(t: Type): Boolean
-
-  /**
    * Returns the element type of an array, or None
    * if t is not an array
    */
@@ -106,7 +101,6 @@ object ObjectModel {
     def fieldsOf(t: Type) = Set()
     def typeOf(f: Field) = {}
     def lteq(t1: Type, t2: Type) = true
-    def isPrimitive(t: Type) = false
   }
 
   /**
