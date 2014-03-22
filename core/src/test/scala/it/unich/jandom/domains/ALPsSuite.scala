@@ -28,10 +28,12 @@ import org.scalatest.PrivateMethodTester
  * @author Gianluca Amato <gamato@unich.it>
  *
  */
-class ALPsSpec extends FunSpec with PrivateMethodTester {
+class ALPsSuite extends FunSpec with PrivateMethodTester {
   import scala.language.implicitConversions
 
-  def ALPsMorphism[OM <: ObjectModel](om: OM)(dom: ALPsDomain[om.type])(g1: dom.Property, g2: dom.Property, m: dom.ALPsMorphism) {
+  import ALPsDomain._
+
+  def ALPsMorphism[OM <: ObjectModel](om: OM)(dom: ALPsDomain[om.type])(g1: dom.Property, g2: dom.Property, m: Morphism) {
     it("preserve labels") {
       for (i <- 0 until g1.dimension) {
         assert((g1.labelOf(i) flatMap m) === g2.labelOf(i))
@@ -90,107 +92,107 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
     val om = TrivialObjectModel
 
     val nodeType = PrivateMethod[Option[om.Type]]('nodeType)
-    val expandSpan = PrivateMethod[Map[om.Field, dom.Node]]('expandSpan)
+    val expandSpan = PrivateMethod[dom.Span]('expandSpan)
 
     implicit def sizeToTypes(size: Int) = Seq.fill(size)(om.tsuper)
 
     val types = Seq(om.tsuper, om.tsuper, om.tsuper, om.tsub)
 
     val g1 = {
-      val n0 = new dom.Node
-      val n1 = new dom.Node
-      val n2 = new dom.Node
+      val n0 = Node()
+      val n1 = Node()
+      val n2 = Node()
       dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n1, 'b', n2)), 4)
     }
     val g1a = {
-      val n0 = new dom.Node
-      val n1 = new dom.Node
-      val n2 = new dom.Node
+      val n0 = Node()
+      val n1 = Node()
+      val n2 = Node()
       dom(Seq(Some(n2), Some(n1), None, None), Seq((n1, 'b', n0), (n2, 'a', n0)), 4)
     }
     val g1b = {
-      val n0 = new dom.Node
-      val n1 = new dom.Node
-      val n2 = new dom.Node
+      val n0 = Node()
+      val n1 = Node()
+      val n2 = Node()
       dom(Seq(Some(n0), Some(n1), Some(n2), None), Seq((n0, 'a', n2), (n1, 'b', n2)), 4)
     }
     val g1c = {
-      val n0 = new dom.Node
-      val n1 = new dom.Node
-      val n2 = new dom.Node
-      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n0, 'c', new dom.Node), (n1, 'b', n2)), om.tsub +: 3)
+      val n0 = Node()
+      val n1 = Node()
+      val n2 = Node()
+      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n0, 'c', Node()), (n1, 'b', n2)), om.tsub +: 3)
     }
     val g1d = {
-      val n0 = new dom.Node
-      val n1 = new dom.Node
-      val n2 = new dom.Node
-      val n3 = new dom.Node
-      dom(Seq(Some(n0), Some(n1), Some(n1), None, Some(n3)), Seq((n0, 'a', n2), (n1, 'b', n2), (n3, 'a', new dom.Node), (n3, 'b', new dom.Node)), 5)
+      val n0 = Node()
+      val n1 = Node()
+      val n2 = Node()
+      val n3 = Node()
+      dom(Seq(Some(n0), Some(n1), Some(n1), None, Some(n3)), Seq((n0, 'a', n2), (n1, 'b', n2), (n3, 'a', Node()), (n3, 'b', Node())), 5)
     }
     val g1e = {
-      val n0 = new dom.Node
-      val n1 = new dom.Node
-      val n2 = new dom.Node
+      val n0 = Node()
+      val n1 = Node()
+      val n2 = Node()
       dom(Seq(Some(n1), Some(n0), None), Seq((n0, 'a', n2), (n1, 'b', n2)), 3)
     }
     val g1f = {
-      val n0 = new dom.Node
-      val n1 = new dom.Node
-      val n2 = new dom.Node
+      val n0 = Node()
+      val n1 = Node()
+      val n2 = Node()
       dom(Seq(Some(n0), Some(n1), None), Seq((n0, 'a', n2), (n1, 'b', n2)), 3)
     }
     val g1bb = {
-      dom(Seq(None, Some(new dom.Node), None, None), Seq(), 4)
+      dom(Seq(None, Some(Node()), None, None), Seq(), 4)
     }
     val g2 = {
-      val n0 = new dom.Node
-      val n1 = new dom.Node
-      val n2 = new dom.Node
+      val n0 = Node()
+      val n1 = Node()
+      val n2 = Node()
       dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2)), 4)
     }
     val g3 = {
-      val n0 = new dom.Node
-      val n1 = new dom.Node
-      val n2 = new dom.Node
-      val n3 = new dom.Node
+      val n0 = Node()
+      val n1 = Node()
+      val n2 = Node()
+      val n3 = Node()
       dom(Seq(Some(n2), Some(n1), Some(n1), Some(n3)), Seq((n2, 'a', n0), (n2, 'b', n3)), 4)
     }
     val g4 = {
-      val n0 = new dom.Node
-      val n1 = new dom.Node
-      val n2 = new dom.Node
+      val n0 = Node()
+      val n1 = Node()
+      val n2 = Node()
       dom(Seq(Some(n0), Some(n1), Some(n1), Some(n0)), Seq((n0, 'a', n2), (n0, 'b', n2), (n1, 'b', n0)), 3 :+ om.tsub)
     }
     val g4b = {
-      val n0 = new dom.Node
-      val n1 = new dom.Node
-      val n2 = new dom.Node
+      val n0 = Node()
+      val n1 = Node()
+      val n2 = Node()
       dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2)), 3 :+ om.tsub)
     }
     val g4union = {
-      val n0 = new dom.Node
-      val n1 = new dom.Node
-      val n2 = new dom.Node
-      val n4 = new dom.Node
-      dom(Seq(Some(n0), Some(n1), Some(n1), Some(n2)), Seq((n0, 'a', new dom.Node), (n0, 'b', new dom.Node), (n1, 'b', new dom.Node),
+      val n0 = Node()
+      val n1 = Node()
+      val n2 = Node()
+      val n4 = Node()
+      dom(Seq(Some(n0), Some(n1), Some(n1), Some(n2)), Seq((n0, 'a', Node()), (n0, 'b', Node()), (n1, 'b', Node()),
         (n2, 'a', n4), (n2, 'b', n4)), 3 :+ om.tsub)
     }
     val g4big = {
-      val n0 = new dom.Node
-      val n1 = new dom.Node
-      val n2 = new dom.Node
-      dom(Seq(Some(n0), Some(n1), Some(n1), Some(n2)), Seq((n0, 'a', new dom.Node), (n0, 'b', new dom.Node), (n1, 'b', new dom.Node),
-        (n2, 'a', new dom.Node), (n2, 'b', new dom.Node)), 3 :+ om.tsub)
+      val n0 = Node()
+      val n1 = Node()
+      val n2 = Node()
+      dom(Seq(Some(n0), Some(n1), Some(n1), Some(n2)), Seq((n0, 'a', Node()), (n0, 'b', Node()), (n1, 'b', Node()),
+        (n2, 'a', Node()), (n2, 'b', Node())), 3 :+ om.tsub)
     }
     val g5 = {
-      val n0 = new dom.Node
-      val n1 = new dom.Node
-      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', new dom.Node), (n1, 'a', n1), (n1, 'b', new dom.Node)), 4)
+      val n0 = Node()
+      val n1 = Node()
+      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', Node()), (n1, 'a', n1), (n1, 'b', Node())), 4)
     }
     val g5big = {
-      val n0 = new dom.Node
-      val n1 = new dom.Node
-      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', new dom.Node), (n1, 'a', new dom.Node), (n1, 'b', new dom.Node)), 4)
+      val n0 = Node()
+      val n1 = Node()
+      dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', Node()), (n1, 'a', Node()), (n1, 'b', Node())), 4)
     }
     val bot4 = dom.bottom(4)
     val top4 = dom.top(4)
@@ -478,21 +480,21 @@ class ALPsSpec extends FunSpec with PrivateMethodTester {
 
     describe("The connect method") {
       it("passes test1") {
-        val n0 = new dom.Node
-        val n1 = new dom.Node
-        val n2 = new dom.Node
+        val n0 = Node()
+        val n1 = Node()
+        val n2 = Node()
         val g1 = dom(Seq(Some(n0), Some(n0), Some(n1)), Seq(), 3)
         val g2 = dom(Seq(Some(n2)), Seq(), 1)
         assert (g1.connect(g2,1) === g1.delVariable(2))
       }
       it("passes test2") {
-        val n0 = new dom.Node
-        val n1 = new dom.Node
-        val n2 = new dom.Node
-        val n3 = new dom.Node
-        val g1 = dom(Seq(Some(n0), Some(n0), Some(n1)), Seq((n0,'a',new dom.Node)), 3)
+        val n0 = Node()
+        val n1 = Node()
+        val n2 = Node()
+        val n3 = Node()
+        val g1 = dom(Seq(Some(n0), Some(n0), Some(n1)), Seq((n0,'a',Node())), 3)
         val g2 = dom(Seq(Some(n2),Some(n3)), Seq((n3, 'b',n2)), 2)
-        val g3 = dom(Seq(Some(n0), Some(n0), Some(n3)), Seq((n0,'a',new dom.Node), (n0,'b',new dom.Node), (n3,'b',n2)), 3)
+        val g3 = dom(Seq(Some(n0), Some(n0), Some(n3)), Seq((n0,'a',Node()), (n0,'b',Node()), (n3,'b',n2)), 3)
         assert (g1.connect(g2,1) === g3)
       }
     }

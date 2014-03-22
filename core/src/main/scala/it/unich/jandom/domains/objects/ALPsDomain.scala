@@ -28,15 +28,19 @@ import it.unich.jandom.utils.DisjointSets
  */
 class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
-  type Node = ALPsDomain.Node
+  import ALPsDomain._
+  
+  type Span = Map[om.Field, Node]
+  
+  type EdgeSet = Map[Node, Span]
 
   def top(types: Seq[om.Type]) = {
-    val labels = for { t <- types } yield if (om.mayShare(t, t)) Some(new Node) else None
-    val edges = (for { (t, Some(n)) <- types zip labels } yield {
-      val outspan = for { f <- om.fieldsOf(t); tf = om.typeOf(f); if om.mayShare(tf, tf) } yield f -> new Node()
-      n -> outspan.toMap
-    })
-    new Property(labels, edges.toMap.withDefaultValue(Map.empty), types)
+    val labels = for { t <- types } yield if (om.mayShare(t, t)) Some(Node()) else None
+    val edges: EdgeSet = (for { (t, Some(n)) <- types zip labels } yield { 
+      val span: Span = (for { f <- om.fieldsOf(t); tf = om.typeOf(f); if om.mayShare(tf, tf) } yield f -> Node()) (collection.breakOut)
+      n -> span
+    })  (collection.breakOut)  
+    new Property(labels, edges.withDefaultValue(Map.empty), types)
   }
 
   def bottom(types: Seq[om.Type]) = new Property(Seq.fill(types.size)(None), Map().withDefaultValue(Map.empty), types)
@@ -52,39 +56,27 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     apply(labels, graphEdges, types)
   }
 
-  type EdgeSet = Map[Node, Map[om.Field, Node]]
-
-  type ALPsMorphism = Map[Node, Option[Node]]
-
   case class Property(labels: Seq[Option[Node]], edges: EdgeSet, types: Seq[om.Type]) extends ObjectProperty[Property] {
 
     /**
-     * Apply a morphism to a graph
+     * Apply a morphism to a graph.
      */
-    private def applyMorphism(m: ALPsMorphism) = {
-      val newLabels = labels map {
-        case None => None
-        case on @ Some(n) =>
-          val mapped = m.get(n)
-          if (mapped.isDefined)
-            mapped.get
-          else
-            on
-      }
+    private def applyMorphism(m: Morphism) = {
+      val newLabels = labels map { _ flatMap m }
       val newEdges = for {
         (src, span) <- edges
-        newsrc = m.getOrElse(src, Some(src))
+        newsrc = m(src)
         if newsrc.isDefined
       } yield newsrc.get -> (for {
         (f, dst) <- span
-        newdst = m.getOrElse(dst, Some(dst))
+        newdst = m(dst)
         if newdst.isDefined
       } yield f -> newdst.get)
       new Property(newLabels, newEdges, types)
     }
 
     /**
-     * Returns the type of a node `n`, the least type of all the variables bound to `n`
+     * Returns the type of a node `n`, the least type of all the variables bound to `n`.
      */
     private def nodeType(n: Node): Option[om.Type] = {
       var nodet: Option[om.Type] = None
@@ -95,18 +87,18 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     }
 
     /**
-     * Returns the new set of edges of node `n` assuming its type becomes t
+     * Returns the new set of edges of node `n` assuming its type becomes t.
      */
     private def expandSpan(n: Node, t: om.Type) = {
       var span = edges(n)
       val nodet = nodeType(n)
       if (nodet.isEmpty || om.lteq(t, nodet.get))
-        for (f <- om.fieldsOf(t) -- om.fieldsOf(nodet.get); if !(span isDefinedAt f)) span += f -> new Node
+        for (f <- om.fieldsOf(t) -- om.fieldsOf(nodet.get); if !(span isDefinedAt f)) span += f -> Node()
       span
     }
 
     /**
-     *  Returns the set of nodes reachable by `n`
+     *  Returns the set of nodes reachable by `n`.
      */
     private def reachableNodes(n: Node) = {
       val s = collection.mutable.Set(n)
@@ -151,7 +143,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
      * Returns a full span for a node of type t
      */
     private def fullSpan(t: om.Type) = {
-      (for (f <- om.fieldsOf(t)) yield f -> new Node)(collection.breakOut): Map[om.Field, Node]
+      (for (f <- om.fieldsOf(t)) yield f -> Node())(collection.breakOut): Map[om.Field, Node]
     }
 
     /**
@@ -210,7 +202,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         def copySubgraph(g: Property, reachable: collection.mutable.Set[Node], map: collection.mutable.Map[Node, Node], node: Node): Node = {
           map.get(node) match {
             case None =>
-              val newnode = new Node
+              val newnode = Node()
               reachable += newnode
               map(node) = newnode
               val span = for ((f, n) <- g.edges(node)) yield (f, copySubgraph(g, reachable, map, n))
@@ -244,18 +236,18 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
                   map2 += n2 -> n1
                   matchFields(n1, n1, n2)
                 case (true, false) =>
-                  val newnode = new Node
+                  val newnode = Node()
                   map1 += n1 -> newnode
                   matchFields(newnode, n1, n2)
                 case (false, true) =>
-                  val newnode = new Node
+                  val newnode = Node()
                   map2 += n2 -> newnode
                   matchFields(newnode, n1, n2)
                 case (true, true) =>
                   if (map1(n1) == map2(n2))
                     map1(n1)
                   else {
-                    val newnode = new Node
+                    val newnode = Node()
                     matchFields(newnode, n1, n2)
                   }
               }
@@ -394,8 +386,8 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     }
 
     def addFreshVariable(t: om.Type): Property = {
-      val n = new Node
-      val span: Map[om.Field, Node] = om.fieldsOf(t).map { _ -> new Node }(collection.breakOut)
+      val n = Node()
+      val span: Map[om.Field, Node] = om.fieldsOf(t).map { _ -> Node() }(collection.breakOut)
       new Property(labels :+ Some(n), edges updated (n, span), types :+ t)
     }
 
@@ -438,7 +430,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
           val newedges = for ((n, span) <- edges) yield if (n == dstNode)
             n -> newspan
           else if (possibleAliases contains n)
-            n -> span.updated(field, new Node)
+            n -> span.updated(field, Node())
           else
             n -> span
           Property(labels, newedges withDefaultValue Map(), types)
@@ -503,7 +495,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
      * is the same result of `tryCompare` and `m` is the morphism, either `this |-> other`
      * or `other |-> this` according to the value of `i`.
      */
-    def tryMorphism(other: Property): Option[(Int, ALPsMorphism)] = {
+    def tryMorphism(other: Property): Option[(Int, Morphism)] = {
 
       class MorphismBuilder {
         private var status: Option[Int] = Some(0)
@@ -512,7 +504,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
         def direction = this.status
 
-        def morphism: Option[ALPsMorphism] = status match {
+        def morphism: Option[Morphism] = status match {
           case None => None
           case Some(-1) => Some(map2.withDefaultValue(None))
           case _ => Some(map1.withDefaultValue(None))
@@ -619,12 +611,28 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 }
 
 object ALPsDomain extends ObjectDomainFactory {
+  
   /**
-   * This is a node in the ALPs graph.
+   * A node in the ALPs graph. We tried to use integer for nodes, but since they
+   * are mostly put inside maps, hence they should be boxed, it is not very
+   * convenient.
    */
-  class Node extends AnyRef {
-    override def toString = s"n${hashCode().toString}"
+  class Node private {
+    override def toString = s"n${this.hashCode}"
   }
 
+  /**
+   * The factory for nodes.
+   */
+  object Node {    
+    def apply(): Node = new Node      
+  }
+  
+  /**
+   * A morphism is a function from Node to Option[Node]. We could use 
+   * partial function, but I think a standard function is more convenient.
+   */
+  type Morphism = Function[Node, Option[Node]]
+  
   def apply[OM <: ObjectModel](om: OM) = new ALPsDomain(om)
 }
