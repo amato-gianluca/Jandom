@@ -46,23 +46,21 @@ trait ObjectModelSuite {
       }
     }
   }
-
-  describe("The minimum operation") {
-    it("is idempotent") {
-      for (t1 <- someTypes) {
-        assert(om.min(t1, t1) == t1)
-      }
+  
+  describe("The glbapprox relation") {
+    it("is reductive") {
+      for (t <- someTypes ) {
+        val glb = om.glbApprox(Seq(t,t))
+        assert(glb.isDefined)
+        assert( om.lteq(t, glb.get) )
+      } 
     }
-    it("returns the minimum of two types") {
-      for (t1 <- someTypes; t2 <- someTypes) {
-        if (om.lteq(t1, t2) || om.lteq(t2, t1)) {
-          val tm = om.min(t1, t2)
-          assert(om.lteq(tm, t1))
-          assert(om.lteq(tm, t2))
-        } else {
-          intercept[IllegalArgumentException](om.min(t1, t2))
-        }
-      }
+    it("is bigger than the glb") {
+      for (t1 <- someTypes; t2 <- someTypes; t3 <- someTypes; if om.lteq(t3,t1) && om.lteq(t3,t2)) {
+        val glb = om.glbApprox(Seq(t1,t2))
+        assert(glb.isDefined)
+        assert( om.lteq(t3, glb.get) )        
+      } 
     }
   }
 

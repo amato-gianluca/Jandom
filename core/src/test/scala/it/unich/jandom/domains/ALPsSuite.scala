@@ -76,18 +76,24 @@ class ALPsSuite extends FunSpec with PrivateMethodTester {
       def fieldsOf(t: Type) = t match {
         case `tsuper` => Set('a', 'b')
         case `tsub` => Set('a', 'b', 'c')
-        case _ => Set()
+        case `tother` => Set()
       }
       def typeOf(f: Field) = f match {
         case 'a' => tsuper
         case 'b' => tsuper
         case 'c' => tsub
-        case _ => tother
       }
       def lteq(t1: Type, t2: Type) = t1 == this.tsub || t2 == this.tsuper
-      def isPrimitive(t: Type) = false
+      def glbApprox(ts: Iterable[Type]) = if (ts.isEmpty)
+        None
+      else if (ts exists { _ == tsub})
+        Some(tsub)
+      else 
+        Some(tsuper)
     }
 
+    import TrivialObjectModel._
+    
     val dom = ALPsDomain(TrivialObjectModel)
     val om = TrivialObjectModel
 
@@ -202,10 +208,11 @@ class ALPsSuite extends FunSpec with PrivateMethodTester {
     describe("The bottom ALPs graph of dimension 4") {
       val size = 4
       val bot = dom.bottom(size)
+      
       it("has all reachable identifiers labeled by null") {
         for (i <- 0 until size) {
           assert(bot.labelOf(i).isEmpty)
-          for (f <- om.fieldsOf(om.tsuper)) {
+          for (f <- om.fieldsOf(tsuper)) {
             assert(bot.labelOf(i, f).isEmpty)
           }
         }
@@ -213,7 +220,7 @@ class ALPsSuite extends FunSpec with PrivateMethodTester {
       it("has all identifiers definitively null") {
         for (i <- 0 until size) {
           assert(bot.isDefiniteNull(i))
-          for (j <- om.fieldsOf(om.tsuper)) {
+          for (j <- om.fieldsOf(tsuper)) {
             assert(bot.isDefiniteNull(i), Seq(j))
             for (k <- om.fieldsOf(om.typeOf(j))) assert(bot.isDefiniteNull(i), Seq(j, k))
           }
@@ -232,7 +239,7 @@ class ALPsSuite extends FunSpec with PrivateMethodTester {
       it("has no variable definitively null") {
         for (i <- 0 until size) {
           assert(!top.isDefiniteNull(i))
-          for (j <- om.fieldsOf(om.tsuper)) {
+          for (j <- om.fieldsOf(tsuper)) {
             assert(!top.isDefiniteNull(i), Seq(j))
             for (k <- om.fieldsOf(om.typeOf(j))) assert(!top.isDefiniteNull(i), Seq(j, k))
           }
@@ -241,7 +248,7 @@ class ALPsSuite extends FunSpec with PrivateMethodTester {
       it("has all reachable identifiers mapped to a node") {
         for (i <- 0 until size) {
           assert(top.labelOf(i).nonEmpty)
-          for (f <- om.fieldsOf(om.tsuper)) {
+          for (f <- om.fieldsOf(tsuper)) {
             assert(top.labelOf(i, f).nonEmpty)
           }
         }
@@ -339,7 +346,7 @@ class ALPsSuite extends FunSpec with PrivateMethodTester {
 
     describe("The assignVariableToField method") {
       it("gives bottom when the dst variable is definitively null") {
-        assert(g1.assignVariableToField(3, 'a',1).isBottom)
+        assert(g1.assignVariableToField(3, 'a', 1).isBottom)
       }
       it("it maps  g1.assignVariableToField(1, 'b', 3) to g2") {
         assert(g1.assignVariableToField(1, 'b', 3) === g2)
@@ -453,7 +460,7 @@ class ALPsSuite extends FunSpec with PrivateMethodTester {
     }
 
     describe("The intersection method") {
-     it("is idempotent") {
+      it("is idempotent") {
         for (g <- allgraphs) {
           assert((g intersection g) === g)
         }
@@ -485,17 +492,17 @@ class ALPsSuite extends FunSpec with PrivateMethodTester {
         val n2 = Node()
         val g1 = dom(Seq(Some(n0), Some(n0), Some(n1)), Seq(), 3)
         val g2 = dom(Seq(Some(n2)), Seq(), 1)
-        assert (g1.connect(g2,1) === g1.delVariable(2))
+        assert(g1.connect(g2, 1) === g1.delVariable(2))
       }
       it("passes test2") {
         val n0 = Node()
         val n1 = Node()
         val n2 = Node()
         val n3 = Node()
-        val g1 = dom(Seq(Some(n0), Some(n0), Some(n1)), Seq((n0,'a',Node())), 3)
-        val g2 = dom(Seq(Some(n2),Some(n3)), Seq((n3, 'b',n2)), 2)
-        val g3 = dom(Seq(Some(n0), Some(n0), Some(n3)), Seq((n0,'a',Node()), (n0,'b',Node()), (n3,'b',n2)), 3)
-        assert (g1.connect(g2,1) === g3)
+        val g1 = dom(Seq(Some(n0), Some(n0), Some(n1)), Seq((n0, 'a', Node())), 3)
+        val g2 = dom(Seq(Some(n2), Some(n3)), Seq((n3, 'b', n2)), 2)
+        val g3 = dom(Seq(Some(n0), Some(n0), Some(n3)), Seq((n0, 'a', Node()), (n0, 'b', Node()), (n3, 'b', n2)), 3)
+        assert(g1.connect(g2, 1) === g3)
       }
     }
   }

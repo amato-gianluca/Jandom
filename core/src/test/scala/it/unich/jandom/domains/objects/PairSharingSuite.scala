@@ -160,7 +160,10 @@ class PairSharingSuite extends FunSuite {
       def fieldsOf(t: Type) = Set()
       def typeOf(f: Field) = f
       def lteq(t1: Type, t2: Type) = t1 == t2
-      def isPrimitive(t: Type) = false
+      def glbApprox(ts: Iterable[Type]) = if (ts.isEmpty)
+        None
+      else         
+        if (ts.tail forall { _ == ts.head }) Some(ts.head) else None     
     }
 
     val dom = new PairSharingDomain(NonTrivialModel)

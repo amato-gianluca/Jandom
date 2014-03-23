@@ -76,14 +76,16 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     }
 
     /**
-     * Returns the type of a node `n`, the least type of all the variables bound to `n`.
+     * Determines whether the node `n` is directly accessible from variables 
      */
-    private def nodeType(n: Node): Option[om.Type] = {
-      var nodet: Option[om.Type] = None
-      for ((Some(`n`), t) <- labels zip types) {
-        nodet = if (nodet == None) Some(t) else Some(om.min(nodet.get, t))
-      }
-      nodet
+    
+    private def isFirstLevel(n: Node): Boolean = { labels contains Some(n) }
+    
+    /**
+     * Returns the glb approximation of the types for the node n
+     */
+    private def nodeType(n: Node): Option[om.Type] = {      
+      om.glbApprox(for ((Some(`n`), t) <- labels zip types) yield t)
     }
 
     /**
@@ -92,7 +94,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     private def expandSpan(n: Node, t: om.Type) = {
       var span = edges(n)
       val nodet = nodeType(n)
-      if (nodet.isEmpty || om.lteq(t, nodet.get))
+      if (nodet.isEmpty || om.lteq(t, nodeType(n).get))
         for (f <- om.fieldsOf(t) -- om.fieldsOf(nodet.get); if !(span isDefinedAt f)) span += f -> Node()
       span
     }
@@ -301,8 +303,8 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
           partition.union(on1, on2)
           (on1, on2) match {
             case (Some(n1), Some(n2)) =>
-              for ((f, n) <- edges(n1); if other.nodeType(n2).isDefined) computePartition(Some(n), other.edges(n2).get(f))
-              for ((f, n) <- other.edges(n2); if nodeType(n1).isDefined) computePartition(edges(n1).get(f), Some(n))
+              for ((f, n) <- edges(n1); if other.isFirstLevel(n2)) computePartition(Some(n), other.edges(n2).get(f))
+              for ((f, n) <- other.edges(n2); if isFirstLevel(n1)) computePartition(edges(n1).get(f), Some(n))
             case (Some(n1), None) =>
               for ((f, n) <- edges(n1)) computePartition(Some(n), None)
             case (None, Some(n2)) =>
@@ -511,7 +513,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         }
 
         def matchFields(n1: Node, n2: Node) = {
-          if (nodeType(n1).isDefined && other.nodeType(n2).isDefined) {
+          if (isFirstLevel(n1) && other.isFirstLevel(n2)) {
             for ((f, n) <- edges(n1)) matchNode(Some(n), other.edges(n2).get(f))
             for ((f, n) <- other.edges(n2)) matchNode(edges(n1).get(f), Some(n))
           }

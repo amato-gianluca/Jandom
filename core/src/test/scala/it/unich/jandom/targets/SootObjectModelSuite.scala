@@ -51,8 +51,8 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
   val arrS3dim2 = ArrayType.v(klassS3, 2)
   val arrS3dim1 = ArrayType.v(klassS3, 1)
   val arrS1dim1 = ArrayType.v(klassS1, 1)
-  val arrIface  = ArrayType.v(interfaceList, 2)
-  val arrIface2  = ArrayType.v(interfaceList2, 2)
+  val arrIface = ArrayType.v(interfaceList, 2)
+  val arrIface2 = ArrayType.v(interfaceList2, 2)
 
   val someTypes = Seq(klassA, klassB, klassListA, klassPair, klassS1, klassS2, klassS3, klassS4,
     klassS5, klassR3, interfaceList, interfaceList, interfaceList2, interfaceList3, interfaceOther, klassK,
@@ -64,7 +64,7 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
   /**
    * describe("The type of all the fields") {
    * it("are different for different definition points") {
-   * val f1 = klassPair.getSootClass().getField("v", klassA)
+   * val f1 = klassPairgetSootClass().getField("v", klassA)
    * val f2 = klassListA.getSootClass().getField("v", klassA)
    * assert(f1 != f2)
    * assert((om.fieldsOf(klassPair) intersect om.fieldsOf(klassListA)).isEmpty)
@@ -73,19 +73,27 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
    */
 
   describe("The subtype relation") {
-    
+
     it("passes some specific test for SootObjectModel") {
       assert(om.lteq(klassS3, klassS1))
       assert(om.lteq(klassS2, klassS1))
       assert(om.lteq(klassS3, klassS2))
       assert(om.lteq(klassListA, interfaceList))
       assert(om.lteq(interfaceList2, interfaceList))
-      assert(om.lteq(primitiveInt, primitiveInt))    
-      assert(! om.lteq(primitiveByte, primitiveInt))      
+      assert(om.lteq(primitiveInt, primitiveInt))
+      assert(!om.lteq(primitiveByte, primitiveInt))
     }
-    
+
     it("is covariant on ArrayType") {
       assert(om.lteq(arrS3dim1, arrS1dim1))
+    }
+  }
+
+  describe("The glbapprox relation") {  
+    it("passes some specific test for SootObjectModel") {
+      assert(om.glbApprox(Seq(interfaceList, interfaceOther)) === Some(scene.getObjectType()))
+      assert(om.glbApprox(Seq(interfaceList, interfaceOther, klassListA)) === Some(klassListA))
+      assert(om.glbApprox(Seq(interfaceList, klassA, interfaceOther, klassListA)) === None)
     }
   }
 
@@ -98,15 +106,15 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
         assert(fields2 subsetOf fields1, s"${t1} has needed fields ${fields1}, {t1}<=${t2} but ${t2} has needed fields ${fields2}")
       }
     }
-    
+
     it("is empty on primitive types") {
       for (t <- someTypes; if t.isInstanceOf[PrimType])
-        assert( om.getNeededFields(t).isEmpty )
+        assert(om.getNeededFields(t).isEmpty)
     }
-    
+
     it("is empty on interfaces") {
-      for (t <- someTypes;  if t.isInstanceOf[RefType] && t.asInstanceOf[RefType].getSootClass().isInterface()) 
-        assert( om.getNeededFields(t).isEmpty )
+      for (t <- someTypes; if t.isInstanceOf[RefType] && t.asInstanceOf[RefType].getSootClass().isInterface())
+        assert(om.getNeededFields(t).isEmpty)
     }
 
     it("passes some specific test for SootObjectModel") {
@@ -125,7 +133,7 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
         assert(neededFields subsetOf possibleFields)
       }
     }
-    
+
     it("is monotone w.r.t. subtype") {
       for (t1 <- someTypes; t2 <- someTypes; if om.lteq(t1, t2)) {
         val fields1 = om.getPossibleFields(t1)
@@ -133,12 +141,12 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
         assert(fields1 subsetOf fields2, s"${t1} has possible fields ${fields1}, {t1}<=${t2} but ${t2} has possible fields ${fields2}")
       }
     }
-     
+
     it("is empty on primitive types") {
-      for (t <- someTypes; if om.isPrimitive(t)) 
-        assert( om.getPossibleFields(t).isEmpty )
-    }    
-    
+      for (t <- someTypes; if om.isPrimitive(t))
+        assert(om.getPossibleFields(t).isEmpty)
+    }
+
     it("passes some specific test for SootObjectModel") {
       val f1 = klassS2.getSootClass().getField("f1", klassA)
       val f2 = klassS3.getSootClass().getField("f2", klassB)
@@ -162,7 +170,7 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
       assert(!om.typeMayBeInstantiated(primitiveInt))
       assert(om.typeMayBeInstantiated(klassPair))
       assert(om.typeMayBeInstantiated(arrIface))
-      assert(om.typeMayBeInstantiated(arrIface2))      
+      assert(om.typeMayBeInstantiated(arrIface2))
     }
   }
 

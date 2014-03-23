@@ -46,9 +46,10 @@ trait ObjectModel {
    * This returns true if two variable of type src and tgt may share
    */
   def mayShare(src: Type, tgt: Type): Boolean
-
+  
   /**
-   * It returns the set of all the fields of the type `t`.
+   * It returns the set of all the fields possessed by an object which has
+   * types `t`
    */
   def fieldsOf(t: Type): Set[Field]
 
@@ -63,8 +64,7 @@ trait ObjectModel {
   def isArray(t: Type): Boolean
 
   /**
-   * Returns the element type of an array, or None
-   * if t is not an array
+   * Returns the element type of an array, or None if t is not an array
    */
   def getElementType(t: Type): Option[Type]
 
@@ -73,15 +73,13 @@ trait ObjectModel {
    * of itself.
    */
   def lteq(t1: Type, t2: Type): Boolean
-
+  
   /**
-   * It returns the minimum between t1 and t2 if it exists, and returns
-   * an exception otherwise.
+   * It returns a type which is an over approximation of the intersection of
+   * all types in ts. If the language is endowed with intersection types,
+   * glb should probably be it.
    */
-  def min(t1: Type, t2: Type) =
-    if (lteq(t1, t2)) t1
-    else if (lteq(t2, t1)) t2
-    else throw new IllegalArgumentException("The min method of ObjectModel only accepts comparable types")
+  def glbApprox(ts: Iterable[Type]): Option[Type]
 }
 
 /**
@@ -101,6 +99,7 @@ object ObjectModel {
     def fieldsOf(t: Type) = Set()
     def typeOf(f: Field) = {}
     def lteq(t1: Type, t2: Type) = true
+    def glbApprox(ts: Iterable[Type]) = Some()
   }
 
   /**

@@ -186,6 +186,29 @@ class SootObjectModel(scene: soot.Scene) extends ObjectModel {
 
   def fieldsOf(t: Type) = getNeededFields(t)
 
+  def glbApprox(ts: Iterable[Type]) =
+    if (ts.isEmpty)
+      None
+    else {
+      var current: Option[Type] =
+        if (ts.head.isInstanceOf[RefType] && ts.head.asInstanceOf[RefType].getSootClass().isInterface())
+          Some(scene.getObjectType())
+        else
+          Some(ts.head)
+      var it = ts.tail.iterator
+      while (current != None && it.hasNext) {
+        val t = it.next()
+        if (t.isInstanceOf[RefType] && t.asInstanceOf[RefType].getSootClass().isInterface()) {
+          if (!current.get.isInstanceOf[RefType])
+            current = None
+        } else if (lteq(t, current.get))
+          current = Some(t)
+        else if (! lteq(current.get, t))
+          current = None
+      }
+      current
+    }
+
   def typeOf(f: Field) = f.getType()
 
   def isArray(t: Type) = t.isInstanceOf[ArrayType]
