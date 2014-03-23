@@ -105,13 +105,13 @@ class PairSharingSuite extends FunSuite {
   test("connectFull: nullness of first property is definitive") {
     val ps1 = dom(Set((0, 0), (0, 1), (1, 1), (1, 3), (3, 3)), 4)
     val ps2 = dom(Set((0, 1), (0, 0), (1, 1), (2, 2), (1, 3), (3, 3)), 4)
-    assert(ps1.connectFull(ps2, 2).isDefiniteNull(2))
+    assert(ps1.connectFull(ps2, 2).mustBeNull(2))
   }
 
   test("connectFull: nullness of second property is definitive") {
     val ps1 = dom(Set((0, 0), (0, 1), (1, 1), (1, 3), (3, 3)), 4)
     val ps2 = dom(Set((0, 0), (2, 2)), 4)
-    assert(ps1.connectFull(ps2, 2).isDefiniteNull(3))
+    assert(ps1.connectFull(ps2, 2).mustBeNull(3))
   }
 
   test("connectFull: connecting from first to second property") {
@@ -157,9 +157,10 @@ class PairSharingSuite extends FunSuite {
       type Type = Int
       type Field = Int
       def mayShare(src: Type, tgt: Type) = UP(src,tgt) != UP(0,1)
+      def mayBeAliases(t1: Type, t2: Type) = t1 == t2
       def fieldsOf(t: Type) = Set()
       def typeOf(f: Field) = f
-      def lteq(t1: Type, t2: Type) = t1 == t2
+      def lteq(t1: Type, t2: Type) = t1 == t2      
       def glbApprox(ts: Iterable[Type]) = if (ts.isEmpty)
         None
       else         

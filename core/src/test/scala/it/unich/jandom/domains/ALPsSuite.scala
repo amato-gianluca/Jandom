@@ -72,7 +72,15 @@ class ALPsSuite extends FunSpec with PrivateMethodTester {
       val tsub = "tsub"
       val tother = "tother"
 
-      def mayShare(src: Type, tgt: Type) = true
+      def lteq(t1: Type, t2: Type) = t1 == this.tsub || t2 == this.tsuper      
+      def glbApprox(ts: Iterable[Type]) = if (ts.isEmpty)
+        None
+      else if (ts exists { _ == tsub })
+        Some(tsub)
+      else
+        Some(tsuper)
+      def mayShare(t1: Type, t2: Type) = true
+      def mayBeAliases(t1: Type, t2: Type) = true
       def fieldsOf(t: Type) = t match {
         case `tsuper` => Set('a', 'b')
         case `tsub` => Set('a', 'b', 'c')
@@ -83,17 +91,10 @@ class ALPsSuite extends FunSpec with PrivateMethodTester {
         case 'b' => tsuper
         case 'c' => tsub
       }
-      def lteq(t1: Type, t2: Type) = t1 == this.tsub || t2 == this.tsuper
-      def glbApprox(ts: Iterable[Type]) = if (ts.isEmpty)
-        None
-      else if (ts exists { _ == tsub})
-        Some(tsub)
-      else 
-        Some(tsuper)
     }
 
     import TrivialObjectModel._
-    
+
     val dom = ALPsDomain(TrivialObjectModel)
     val om = TrivialObjectModel
 
@@ -208,7 +209,7 @@ class ALPsSuite extends FunSpec with PrivateMethodTester {
     describe("The bottom ALPs graph of dimension 4") {
       val size = 4
       val bot = dom.bottom(size)
-      
+
       it("has all reachable identifiers labeled by null") {
         for (i <- 0 until size) {
           assert(bot.labelOf(i).isEmpty)
@@ -219,10 +220,10 @@ class ALPsSuite extends FunSpec with PrivateMethodTester {
       }
       it("has all identifiers definitively null") {
         for (i <- 0 until size) {
-          assert(bot.isDefiniteNull(i))
+          assert(bot.mustBeNull(i))
           for (j <- om.fieldsOf(tsuper)) {
-            assert(bot.isDefiniteNull(i), Seq(j))
-            for (k <- om.fieldsOf(om.typeOf(j))) assert(bot.isDefiniteNull(i), Seq(j, k))
+            assert(bot.mustBeNull(i), Seq(j))
+            for (k <- om.fieldsOf(om.typeOf(j))) assert(bot.mustBeNull(i), Seq(j, k))
           }
         }
       }
@@ -238,10 +239,10 @@ class ALPsSuite extends FunSpec with PrivateMethodTester {
       val top = dom.top(size)
       it("has no variable definitively null") {
         for (i <- 0 until size) {
-          assert(!top.isDefiniteNull(i))
+          assert(!top.mustBeNull(i))
           for (j <- om.fieldsOf(tsuper)) {
-            assert(!top.isDefiniteNull(i), Seq(j))
-            for (k <- om.fieldsOf(om.typeOf(j))) assert(!top.isDefiniteNull(i), Seq(j, k))
+            assert(!top.mustBeNull(i), Seq(j))
+            for (k <- om.fieldsOf(om.typeOf(j))) assert(!top.mustBeNull(i), Seq(j, k))
           }
         }
       }
@@ -316,7 +317,7 @@ class ALPsSuite extends FunSpec with PrivateMethodTester {
     describe("The assignNull method") {
       val g = top4.assignNull(2)
       it("makes variable definitively null") {
-        assert(g.isDefiniteNull(2))
+        assert(g.mustBeNull(2))
       }
       it("should produce a lesser gran than original") {
         assert(g < top4)
@@ -503,6 +504,19 @@ class ALPsSuite extends FunSpec with PrivateMethodTester {
         val g2 = dom(Seq(Some(n2), Some(n3)), Seq((n3, 'b', n2)), 2)
         val g3 = dom(Seq(Some(n0), Some(n0), Some(n3)), Seq((n0, 'a', Node()), (n0, 'b', Node()), (n3, 'b', n2)), 3)
         assert(g1.connect(g2, 1) === g3)
+      }
+    }
+
+    describe("The mayShare method") {
+      it("is true when two variables may be aliased") {
+        for (g <- allgraphs; v1 <- 0 until g.dimension; v2 <- 0 until g.dimension) {
+        	if (g.mayBeAliases(v1, v2)) assert(g.mayShare(v1, v2), s"${v1} and ${v2} may be aliases but cannot share in ${g}")        	
+        }
+      }
+      it("is true when two variables must share") {
+        for (g <- allgraphs; v1 <- 0 until g.dimension; v2 <- 0 until g.dimension) {
+        	if (g.mustShare(v1, v2)) assert(g.mayShare(v1, v2))        	
+        }
       }
     }
   }

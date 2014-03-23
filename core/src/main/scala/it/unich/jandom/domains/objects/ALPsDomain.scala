@@ -440,7 +440,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     }
 
     def assignFieldToVariable(dst: Int, src: Int, field: om.Field): Property = {
-      if (isDefiniteNull(src))
+      if (mustBeNull(src))
         bottom
       else {
         labelOf(src, field) match {
@@ -457,16 +457,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         case Some(n) => Property(labels, edges updated (n, expandSpan(n, newtype)), types updated (v, newtype))
       }
     }
-
-    def isDefiniteNull(v: Int, fieldseq: Seq[om.Field]): Boolean = {
-      val loc = labelOf(v)
-      (loc, fieldseq) match {
-        case (None, _) => true
-        case (Some(node), Seq(f)) => edges(node).isDefinedAt(f)
-        case _ => false
-      }
-    }
-
+   
     def testNull(v: Int): Property = {
       labelOf(v) match {
         case None => this
@@ -483,12 +474,34 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     }
 
     def testNotNull(v: Int): Property = {
-      if (isDefiniteNull(v))
+      if (mustBeNull(v))
         bottom
       else
         this
     }
 
+    def mustBeNull(v: Int, fieldseq: Seq[om.Field]) = {
+      val loc = labelOf(v)
+      (loc, fieldseq) match {
+        case (None, _) => true
+        case (Some(node), Seq(f)) => edges(node).isDefinedAt(f)
+        case _ => false
+      }
+    }
+
+    def mayBeNull(v: Int, fieldseq: Seq[om.Field]) = true
+    
+    def mayShare(v1: Int, v2: Int) = (labels(v1) ,labels(v2)) match {
+      case (Some(n1), Some(n2)) => true
+      case _ => false      
+    }
+    
+    def mustShare(v1: Int, v2: Int) = false
+    
+    def mayBeAliases(v1: Int, v2: Int) = labels(v1).isDefined && labels(v2).isDefined && om.mayBeAliases(types(v1),types(v2))
+    
+    def mustBeAliases(v1: Int, v2: Int) = labels(v1).isDefined && labels(v2) == labels(v1)
+    
     /**
      * Returns, if it exists, a morphism connecting `this` and `other`.
      * @param other the other graph. We assume the two graphs are over the same fiber, since

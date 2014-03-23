@@ -46,16 +46,16 @@ trait ObjectDomain[OM <: ObjectModel] extends CartesianFiberedDomain {
   /**
    * This trait is the interface for abstract elements in the object domain.
    */
-  trait ObjectProperty[P <: ObjectProperty[P]] extends CartesianFiberedProperty[om.Type, P]  {
+  trait ObjectProperty[P <: ObjectProperty[P]] extends CartesianFiberedProperty[om.Type, P] {
     this: P =>
 
     /**
-     * Add a new variable. The new variable may be in whatever relationship with the 
+     * Add a new variable. The new variable may be in whatever relationship with the
      * old ones.
      * @param t the type of the new variable
      */
-    def addUnknownVariable(t: om.Type): Property
-    
+    def addUnknownVariable(t: om.Type): P
+
     /**
      * Add a new non-null variable which does not share with any other variable.
      * @param t the type of the new variable
@@ -85,15 +85,41 @@ trait ObjectDomain[OM <: ObjectModel] extends CartesianFiberedDomain {
     def assignFieldToVariable(dst: Int, src: Int, field: om.Field): P
 
     /**
-     * Change the type of variable i-th. We assume the new type is comparable with the old one. 
+     * Change the type of variable i-th. We assume the new type is comparable with the old one.
      */
-    def castVariable(v: Int, newtype: om.Type): Property 
-    
+    def castVariable(v: Int, newtype: om.Type): P
+
     /**
      * Returns true if the location obtained by v following fields in fieldseq is definitively
      * null. If some intermediate value is definitively null, it returns true.
      */
-    def isDefiniteNull(v: Int, fieldseq: Seq[om.Field] = Seq()): Boolean
+    def mustBeNull(v: Int, fieldseq: Seq[om.Field] = Seq()): Boolean
+
+    /**
+     * Returns true if the location obtained by v following fields in fieldseq may be
+     * null. If some intermediate value is definitively null, it returns true.
+     */
+    def mayBeNull(v: Int, fieldseq: Seq[om.Field] = Seq()): Boolean
+
+    /**
+     * Returns true if two variables may share
+     */
+    def mayShare(v1: Int, v2: Int): Boolean
+
+    /**
+     * Returns true if two variables must share
+     */
+    def mustShare(v1: Int, v2: Int): Boolean
+
+    /**
+     * Returns true if two variables may be aliases
+     */
+    def mayBeAliases(v1: Int, v2: Int): Boolean
+
+    /**
+     * Returns true if two variables must be aliases
+     */
+    def mustBeAliases(v1: Int, v2: Int): Boolean
 
     /**
      * Returns the property after the successful completion of the test `v == null`

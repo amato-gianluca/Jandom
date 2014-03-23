@@ -41,45 +41,50 @@ trait ObjectModel {
    * in the same point of the type hierarchy.
    */
   type Field
-
-  /**
-   * This returns true if two variable of type src and tgt may share
-   */
-  def mayShare(src: Type, tgt: Type): Boolean
   
   /**
-   * It returns the set of all the fields possessed by an object which has
-   * types `t`
-   */
-  def fieldsOf(t: Type): Set[Field]
-
-  /**
-   * It returns the type of the object pointed by type `t`
-   */
-  def typeOf(f: Field): Type
-
-  /**
-   * Returns whether a type is an array
-   */
-  def isArray(t: Type): Boolean
-
-  /**
-   * Returns the element type of an array, or None if t is not an array
-   */
-  def getElementType(t: Type): Option[Type]
-
-  /**
-   * It returns true if `t1` is a subtype of `t2`. Each type is a subtype
-   * of itself.
+   * It returns true iff `t1` is a subtype of `t2`, i.e., if each variable of type `t1`
+   * may be saved in a variable of type `t2`.
    */
   def lteq(t1: Type, t2: Type): Boolean
   
   /**
-   * It returns a type which is an over approximation of the intersection of
-   * all types in ts. If the language is endowed with intersection types,
-   * glb should probably be it.
+   * If there is a type `t` which is subtype of all types in `ts`, then it returns a
+   * type `t'` such that t' <= t. Otherwise, it returns `None`. If the language is endowed 
+   * with intersection types, glb should probably be it.
    */
   def glbApprox(ts: Iterable[Type]): Option[Type]
+  
+  /**
+   * This returns true iff two variables of type t1 and t2 may share.
+   */
+  def mayShare(t1: Type, t2: Type): Boolean
+
+  /**
+   * This returns true iff two variables of type t1 and t2 may be aliased.
+   */
+  def mayBeAliases(t1: Type, t2: Type): Boolean
+  
+  /**
+   * It returns the set of all the fields possessed by an object of type `t`.
+   */
+  def fieldsOf(t: Type): Set[Field]
+
+  /**
+   * It returns the type of the object pointed by field `f`.
+   */
+  def typeOf(f: Field): Type
+
+  /**
+   * Returns whether a type `t` is an array.
+   */
+  def isArray(t: Type): Boolean
+
+  /**
+   * Returns the element type of the array `t`, or `None` if `t` is not an array
+   */
+  def getElementType(t: Type): Option[Type]
+
 }
 
 /**
@@ -95,7 +100,8 @@ object ObjectModel {
     self: ObjectModel =>
     type Type = Unit
     type Field = Int
-    def mayShare(src: Type, tgt: Type) = true
+    def mayShare(t1: Type, t2: Type) = true
+    def mayBeAliases(t1: Type, t2: Type) = true
     def fieldsOf(t: Type) = Set()
     def typeOf(f: Field) = {}
     def lteq(t1: Type, t2: Type) = true

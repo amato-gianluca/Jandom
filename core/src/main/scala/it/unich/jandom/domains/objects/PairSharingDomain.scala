@@ -141,15 +141,15 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
       // same time, translate index
       val trimmedTranslatedThat = for {
         UP(l, r) <- that.ps
-        if l >= common || !isDefiniteNull(l + firstCommonInThis)
-        if r >= common || !isDefiniteNull(r + firstCommonInThis)
+        if l >= common || !mustBeNull(l + firstCommonInThis)
+        if r >= common || !mustBeNull(r + firstCommonInThis)
       } yield UP(l + firstCommonInThis, r + firstCommonInThis)
       // remove from this those pairs which only relates common variables. Moreover,
       // remove variables which are null in `that` (if a variable is null in that,
       // since it cannot be forced to be null due to call-by-value semantics, it had
       // to be null before.
       val trimmedThis = this.ps filter {
-        case UP(l, r) => l < firstCommonInThis && (r < firstCommonInThis || !that.isDefiniteNull(r - firstCommonInThis))
+        case UP(l, r) => l < firstCommonInThis && (r < firstCommonInThis || !that.mustBeNull(r - firstCommonInThis))
       }
       // join one ps of this with one ps of that
       val j1 = for {
@@ -174,7 +174,7 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
 
     def assignVariable(dst: Int, src: Int) = {
       val removed = removeVariable(ps, dst)
-      if (isDefiniteNull(src))
+      if (mustBeNull(src))
         new Property(removed, rtypes)
       else
         new Property(removed ++ renameVariable(removed, dst, src) + UP(dst, src), rtypes)
@@ -183,7 +183,7 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
     def castVariable(v: Int, newtype: om.Type) = this
 
     def assignFieldToVariable(dst: Int, src: Int, field: om.Field) = {
-      if (isDefiniteNull(src)) // src is null, hence accessing its field returns an error
+      if (mustBeNull(src)) // src is null, hence accessing its field returns an error
         bottom
       else {
         val removed = removeVariable(ps, dst)
@@ -193,16 +193,26 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
     }
 
     def assignVariableToField(dst: Int, field: om.Field, src: Int) =
-      if (isDefiniteNull(dst)) // src is null, hence accessing its field returns an error
+      if (mustBeNull(dst)) // src is null, hence accessing its field returns an error
         bottom
       else
         new Property(joinThrough(joinThrough(ps + UP(dst, src), src), dst), rtypes)
 
-    def isDefiniteNull(v: Int, fieldseq: Seq[om.Field]) = !(ps contains UP(v, v))
-
     def testNull(v: Int) = new Property(removeVariable(ps, v), rtypes)
 
-    def testNotNull(v: Int) = if (isDefiniteNull(v)) bottom else this
+    def testNotNull(v: Int) = if (mustBeNull(v)) bottom else this
+  
+    def mayBeNull(v: Int, fieldseq: Seq[om.Field]) = true 
+      
+    def mustBeNull(v: Int, fieldseq: Seq[om.Field]) = !(ps contains UP(v, v))
+
+    def mayShare(v1:Int, v2: Int) = ps contains UP(v1,v2)
+    
+    def mustShare(v1: Int, v2: Int) = false
+    
+    def mayBeAliases(v1: Int, v2: Int) = mayShare(v1,v2)
+    
+    def mustBeAliases(v1: Int, v2: Int) = false
 
     def mkString(vars: Seq[String]) = {
       val pairs = ps map { case UP(l, r) => s"(${vars(l)}, ${vars(r)})" }

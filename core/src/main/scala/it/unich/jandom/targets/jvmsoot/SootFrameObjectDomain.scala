@@ -95,7 +95,7 @@ class SootFrameObjectDomain(val dom: ObjectDomain[SootObjectModel]) extends Soot
       assert(prop.dimension == stack.size, s"Sharing property <${prop}> and stack of types <${stack}> have different dimensions")
       for (i <- 0 until stack.size) stack(size - 1 - i) match {
         case _: RefType =>
-        case _ => assert(prop.isDefiniteNull(i), "A non reference type should be null in the pair sharing component")
+        case _ => assert(prop.mustBeNull(i), "A non reference type should be null in the pair sharing component")
       }
     }
 

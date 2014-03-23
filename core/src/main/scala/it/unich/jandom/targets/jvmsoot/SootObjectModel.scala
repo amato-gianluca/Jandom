@@ -183,7 +183,9 @@ class SootObjectModel(scene: soot.Scene) extends ObjectModel {
         result
     }
   }
-
+  
+  def mayBeAliases(t1: Type, t2: Type) = glbApprox(Seq(t1,t2)).isDefined
+    
   def fieldsOf(t: Type) = getNeededFields(t)
 
   def glbApprox(ts: Iterable[Type]) =
