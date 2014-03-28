@@ -29,7 +29,7 @@ import it.unich.jandom.domains.CartesianFiberedProperty
  * @author Gianluca Amato <gamato@unich.it>
  *
  */
-trait ObjectDomain[OM <: ObjectModel] extends CartesianFiberedDomain {
+trait ObjectDomain[+OM <: ObjectModel] extends CartesianFiberedDomain {
 
   /**
    * The object model of this domain

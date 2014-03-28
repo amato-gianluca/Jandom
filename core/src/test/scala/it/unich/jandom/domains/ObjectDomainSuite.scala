@@ -93,7 +93,7 @@ trait ObjectDomainSuite extends CartesianFiberedDomainSuite with TableDrivenProp
 
     it(s"makes variables possibly share if source is not null") {
       forAll(table) { (p, i, j, f) =>
-        if (!p.mustBeNull(j, Seq(f))) assert(p.assignFieldToVariable(i, j, f).mayShare(i, j))
+        if (!p.mustBeNull(j, Seq(f))) assert(p.assignFieldToVariable(i, j, f).mayShare(i, j) )
       }
     }
     it("propagate possibly nullness") {

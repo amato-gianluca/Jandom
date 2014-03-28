@@ -109,7 +109,7 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
 
     def widening(that: Property) = union(that)
 
-    def narrowing(that: Property) = narrowing(that)
+    def narrowing(that: Property) = that
 
     def addUnknownVariable(t: om.Type) = {
       new Property(ps, t +: rtypes)
