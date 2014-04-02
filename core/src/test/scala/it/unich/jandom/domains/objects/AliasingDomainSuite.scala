@@ -20,6 +20,7 @@ package it.unich.jandom.domains.objects
 
 import org.scalatest.FunSpec
 import org.scalatest.PrivateMethodTester
+import org.scalatest.prop.Tables._
 
 trait AliasingDomainSuiteParameters {
   import scala.language.implicitConversions
@@ -27,7 +28,8 @@ trait AliasingDomainSuiteParameters {
 
   val om = ObjectDomainSuite.TestObjectModel
   val dom = AliasingDomain(om)
-  val someFibers: Seq[Seq[om.Type]] = Seq(Seq(om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper, om.tsuper))
+  val someTypes = Table[dom.FiberType]("type", om.tsuper, om.tsub, om.tother)
+  val someFibers = Table[Seq[dom.FiberType]]("fiber", Seq(om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper, om.tsuper))
 
   implicit def sizeToTypes(size: Int) = Seq.fill(size)(om.tsuper)
 
@@ -130,7 +132,7 @@ trait AliasingDomainSuiteParameters {
     dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', Node()), (n1, 'a', Node()), (n1, 'b', Node())), 4)
   }
 
-  val someProperties = Seq(g1, g2, g3, g4, g5, bot4, top4, g1a, g1b, g1c, g1d, g1e, g1f, g1bb)
+  val someProperties = Table("property", g1, g2, g3, g4, g5, bot4, top4, g1a, g1b, g1c, g1d, g1e, g1f, g1bb)
 }
 
 /**
@@ -138,7 +140,10 @@ trait AliasingDomainSuiteParameters {
  * @author Gianluca Amato <gamato@unich.it>
  *
  */
-class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters with PrivateMethodTester with ObjectDomainSuite {
+class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters with PrivateMethodTester
+  with ObjectDomainSuite with PreciseFiberChange with PreciseDefiniteNullness
+  with PreciseObjectDomain with PreciseDefiniteWeakAliasing {
+
   import AliasingDomain._
 
   def ALPsMorphism(g1: dom.Property, g2: dom.Property, m: Morphism) {
@@ -165,54 +170,74 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
     it should behave like nonExtremalProperty(g)
   }
 
-  for (fiber <- someFibers) {
-    val fiberString = fiber.mkString("[ ", ", ", " ]")
-    describe(s"The bottom ALPs graph on the fiber ${fiberString}") {
-      val bot = dom.bottom(fiber)
+  describe("The bottom ALPs graph") {
 
-      it("has all reachable identifiers labeled by null") {
-        for (i <- 0 until fiber.size) {
-          assert(bot.labelOf(i).isEmpty)
-          for (f <- om.fieldsOf(om.tsuper)) {
-            assert(bot.labelOf(i, f).isEmpty)
-          }
+    it("has all reachable identifiers labeled by null") {
+      forAll(someFibersAndVars) { (fiber, i) =>
+        val bot = dom.bottom(fiber)
+        assert(bot.labelOf(i).isEmpty)
+        for (f <- om.fieldsOf(om.tsuper)) {
+          assert(bot.labelOf(i, f).isEmpty)
         }
       }
-      it("has all identifiers definitively null") {
-        for (i <- 0 until fiber.size) {
-          assert(bot.mustBeNull(i))
-          for (j <- om.fieldsOf(om.tsuper)) {
-            assert(bot.mustBeNull(i), Seq(j))
-            for (k <- om.fieldsOf(om.typeOf(j))) assert(bot.mustBeNull(i), Seq(j, k))
-          }
+    }
+    it("has all identifiers definitively null") {
+      forAll(someFibersAndVars) { (fiber, i) =>
+        val bot = dom.bottom(fiber)
+        assert(bot.mustBeNull(i))
+        for (j <- om.fieldsOf(om.tsuper)) {
+          assert(bot.mustBeNull(i), Seq(j))
+          for (k <- om.fieldsOf(om.typeOf(j))) assert(bot.mustBeNull(i), Seq(j, k))
         }
       }
-      it("is strictly smaller than top") { bot < dom.top(fiber.size) }
-      it("is not top") { assert(!bot.isTop) }
-      it("is not empty") { assert(!bot.isEmpty) }
+    }
+    it("is strictly smaller than top") {
+      forAll(someFibers) { (fiber) =>
+        dom.bottom(fiber) < dom.top(fiber)
+      }
+    }
+    it("is not top") {
+      forAll(someFibers) { (fiber) =>
+        assert(!dom.bottom(fiber).isTop)
+      }
     }
 
-    describe(s"The top ALPs graph on the fiber ${fiberString}") {
-      val top = dom.top(fiber)
-      it("has no variable definitively null") {
-        for (i <- 0 until fiber.size) {
-          assert(!top.mustBeNull(i))
-          for (j <- om.fieldsOf(om.tsuper)) {
-            assert(!top.mustBeNull(i), Seq(j))
-            for (k <- om.fieldsOf(om.typeOf(j))) assert(!top.mustBeNull(i), Seq(j, k))
-          }
+    it("is not empty") {
+      forAll(someFibers) { (fiber) =>
+        assert(!dom.bottom(fiber).isEmpty)
+      }
+    }
+  }
+
+  describe("The top ALPs graph") {
+    it("has no variable definitively null") {
+      forAll(someFibersAndVars) { (fiber, i) =>
+        val top = dom.top(fiber)
+        assert(!top.mustBeNull(i))
+        for (j <- om.fieldsOf(om.tsuper)) {
+          assert(!top.mustBeNull(i), Seq(j))
+          for (k <- om.fieldsOf(om.typeOf(j))) assert(!top.mustBeNull(i), Seq(j, k))
         }
       }
-      it("has all reachable identifiers mapped to a node") {
-        for (i <- 0 until fiber.size) {
-          assert(top.labelOf(i).nonEmpty)
-          for (f <- om.fieldsOf(om.tsuper)) {
-            assert(top.labelOf(i, f).nonEmpty)
-          }
+    }
+    it("has all reachable identifiers mapped to a node") {
+      forAll(someFibersAndVars) { (fiber, i) =>
+        val top = dom.top(fiber)
+        assert(top.labelOf(i).nonEmpty)
+        for (f <- om.fieldsOf(om.tsuper)) {
+          assert(top.labelOf(i, f).nonEmpty)
         }
       }
-      it("is strictly bigger than bottom") { top > dom.bottom(fiber.size) }
-      it("is not bottom") { assert(!top.isBottom) }
+    }
+    it("is strictly bigger than bottom") {
+      forAll(someFibers) { (fiber) =>
+        dom.top(fiber) > dom.bottom(fiber)
+      }
+    }
+    it("is not bottom") {
+      forAll(someFibers) { (fiber) =>
+        assert(!dom.top(fiber).isBottom)
+      }
     }
   }
 
@@ -272,31 +297,12 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
   }
 
   describe("The assignNull method") {
-    it("makes variable definitively null") {
-      for (p <- someProperties; i <- 0 until p.dimension) {
-        assert(p.assignNull(i).mustBeNull(i))
-      }
-    }
-    it("should produce a lesser graph than top") {
-      for (f <- someFibers; i <- 0 until f.size; if om.mayShare(f(i), f(i))) {
-        val top = dom.top(f)
-        assert(top.assignNull(i) < top)
-      }
-    }
     it("maps g1.assignNull(2) to g1a") {
       assert(g1.assignNull(2) === g1a)
     }
   }
 
   describe("The assignVariable method") {
-    it("makes variables definitively aliases if they are not possibly null") {
-      for (
-        p <- someProperties; i <- 0 until p.dimension; j <- 0 until p.dimension;
-        if om.mayBeAliases(p.typeOf(i), p.typeOf(j))
-      ) {
-        assert(p.assignVariable(i, j).mustBeWeakAliases(i, j), s"Variables $i and $j should be definitively aliases in $p")
-      }
-    }
     it("maps g1.assignVariable(1,2) to g1") {
       assert(g1.assignVariable(1, 2) === g1)
     }
@@ -306,22 +312,16 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
   }
 
   describe("The assignFieldToVariable method") {
-    it("gives bottom when the src variable is definitively null") {
-      assert(g1.assignFieldToVariable(2, 3, 'a').isBottom)
-    }
     it("maps g1.assignFieldToVariable(2, 2, 'b') to g1b") {
       assert(g1.assignFieldToVariable(2, 2, 'b') === g1b)
     }
   }
 
   describe("The assignVariableToField method") {
-    it("gives bottom when the dst variable is definitively null") {
-      assert(g1.assignVariableToField(3, 'a', 1).isBottom)
-    }
-    it("it maps  g1.assignVariableToField(1, 'b', 3) to g2") {
+    it("it maps g1.assignVariableToField(1, 'b', 3) to g2") {
       assert(g1.assignVariableToField(1, 'b', 3) === g2)
     }
-    it("it maps  g1.assignVariableToField(2, 'a', 2) to g5") {
+    it("it maps g1.assignVariableToField(2, 'a', 2) to g5") {
       assert(g1.assignVariableToField(2, 'a', 2) === g5)
     }
   }
@@ -337,23 +337,8 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
       assert(g1.addFreshVariable(om.tsuper) === g1d)
     }
   }
-  
-  describe("The delVariable method") {
-    it("transforms bottom in bottom") {
-      for (fiber <- someFibers; v <- 0 until fiber.size) { 
-        assert(dom.bottom(fiber).delVariable(v).isBottom)
-      }      
-    }  
-  }
-  
+
   describe("The mapVariables method") {
-    val rhos = Seq(Seq(-1, -1, -1, 0), Seq(2, 1, -1, 0), Seq(0, 1, 2, 3), Seq(3, 0, 2, 1))
-    it("transforms top in top") {
-      for (v <- 0 until top4.dimension; rho <- rhos) assert(top4.mapVariables(rho).isTop)
-    }
-    it("transforms bottom in bottom") {
-      for (v <- 0 until bot4.dimension; rho <- rhos) assert(bot4.mapVariables(rho).isBottom)
-    }
     it("maps g1.mapVariables(Seq(1, -1, 0, 2)) to g1e") {
       assert(g1.mapVariables(Seq(1, -1, 0, 2)) === g1e)
     }
@@ -363,34 +348,8 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
   }
 
   describe("The testNull method") {
-    it("is the identity on bottom") {
-      for (size <- 0 until 4; j <- 0 until size) {
-        assert(dom.bottom(size).testNull(j).isBottom)
-      }
-    }
-    it("is equivalent to assignNull for top") {
-      for (size <- 0 until 4; j <- 0 until size) {
-        assert(dom.top(size).testNull(j) === dom.top(size).assignNull(j))
-      }
-    }
     it("maps g1b.testNull(0) to g1bb") {
       assert(g1b.testNull(0) === g1bb)
-    }
-  }
-
-  describe("The testNull method") {
-    it("is identity on bottom") {
-      for (size <- 0 until 4; j <- 0 until size) {
-        assert(dom.bottom(size).testNotNull(j).isBottom)
-      }
-    }
-    it("is identity on top") {
-      for (size <- 0 until 4; j <- 0 until size) {
-        assert(dom.top(size).testNotNull(j).isTop)
-      }
-    }
-    it("is bottom if applied to a definite null variable") {
-      assert(g1.testNotNull(3).isBottom)
     }
   }
 

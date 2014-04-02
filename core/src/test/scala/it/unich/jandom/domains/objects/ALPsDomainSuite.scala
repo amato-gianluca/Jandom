@@ -21,6 +21,7 @@ package it.unich.jandom.domains.objects
 import org.scalatest.FunSpec
 import org.scalatest.FlatSpec
 import org.scalatest.PrivateMethodTester
+import org.scalatest.prop.Tables._
 
 trait ALPsDomainSuiteParameters {
   import scala.language.implicitConversions
@@ -28,7 +29,8 @@ trait ALPsDomainSuiteParameters {
 
   val om = ObjectDomainSuite.TestObjectModel
   val dom = ALPsDomain(om)
-  val someFibers: Seq[Seq[om.Type]] = Seq(Seq(om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper, om.tsuper))
+  val someTypes = Table[dom.FiberType]("type", om.tsuper, om.tsub, om.tother)
+  val someFibers = Table[Seq[om.Type]]("fiber", Seq(om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper, om.tsuper))
 
   implicit def sizeToTypes(size: Int) = Seq.fill(size)(om.tsuper)
 
@@ -131,7 +133,7 @@ trait ALPsDomainSuiteParameters {
     dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', Node()), (n1, 'a', Node()), (n1, 'b', Node())), 4)
   }
 
-  val someProperties = Seq(g1, g2, g3, g4, g5, bot4, top4, g1a, g1b, g1c, g1d, g1e, g1f, g1bb)
+  val someProperties = Table("property",g1, g2, g3, g4, g5, bot4, top4, g1a, g1b, g1c, g1d, g1e, g1f, g1bb)
 }
 
 /**

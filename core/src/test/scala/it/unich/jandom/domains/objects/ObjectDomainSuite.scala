@@ -20,6 +20,8 @@ package it.unich.jandom.domains.objects
 
 import org.scalatest.FunSpec
 import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatest.prop.TableFor1
+
 import it.unich.jandom.domains.CartesianFiberedDomainSuite
 
 /**
@@ -32,164 +34,145 @@ trait ObjectDomainSuite extends CartesianFiberedDomainSuite with TableDrivenProp
 
   val om: ObjectModel
   val dom: ObjectDomain[om.type]
-  val someProperties: Seq[dom.Property]
+
+  val somePropertiesAndTwoVars = Table((someProperties.heading, "v1", "v2"),
+    (for (p <- someProperties; v1 <- 0 until p.dimension; v2 <- 0 until p.dimension) yield (p, v1, v2)): _*)
+
+  val someAssignVariable = Table((someProperties.heading, "dst", "src"),
+    (for (p <- someProperties; dst <- 0 until p.dimension; src <- 0 until p.dimension; if om.lteq(p.typeOf(src), p.typeOf(dst))) yield (p, dst, src)): _*)
+    
+  val someAssignFieldToVar = Table((someProperties.heading, "dst", "src", "f"),
+    (for (p <- someProperties; dst <- 0 until p.dimension; src <- 0 until p.dimension; f <- om.fieldsOf(p.typeOf(src)); if om.lteq(om.typeOf(f), p.typeOf(dst))) yield (p, dst, src, f)): _*)
+
+  val someAssignVarToField = Table((someProperties.heading, "dst", "f", "src"),
+    (for (p <- someProperties; dst <- 0 until p.dimension; f <- om.fieldsOf(p.typeOf(dst)); src <- 0 until p.dimension; if om.lteq(p.typeOf(src), om.typeOf(f))) yield (p, dst, f, src)): _*)
+
+  val someCast = Table((someProperties.heading, "v", someTypes.heading),
+    (for (p <- someProperties; v <- 0 until p.dimension; t <- someTypes; if om.lteq(t, p.typeOf(v))) yield (p, v, t)): _*)
 
   describe("The mayShare method") {
     it("is true when two variables may be aliased") {
-      for (p <- someProperties; v1 <- 0 until p.dimension; v2 <- 0 until p.dimension) {
-        if (p.mayBeAliases(v1, v2)) assert(p.mayShare(v1, v2), s"${v1} and ${v2} may be aliases but cannot share in ${p}")
+      forAll(somePropertiesAndTwoVars) { (p, v1, v2) =>
+        whenever(p.mayBeAliases(v1, v2)) { assert(p.mayShare(v1, v2)) }
       }
     }
     it("is true when two variables must share") {
-      for (p <- someProperties; v1 <- 0 until p.dimension; v2 <- 0 until p.dimension) {
-        if (p.mustShare(v1, v2)) assert(p.mayShare(v1, v2))
+      forAll(somePropertiesAndTwoVars) { (p, v1, v2) =>
+        whenever(p.mustShare(v1, v2)) { assert(p.mayShare(v1, v2)) }
       }
     }
   }
 
   describe("The assignNull method") {
-    val possibleInstances = for {
-      p <- someProperties
-      i <- 0 until p.dimension
-    } yield (p, i)
-
-    val table = Table(("p", "i"), possibleInstances: _*)
-
     it("makes variables possibly null") {
-      forAll(table) { (p, i) =>
-        assert(p.assignNull(i).mayBeNull(i))
+      forAll(somePropertiesAndVars) { (p, v) =>
+        assert(p.assignNull(v).mayBeNull(v))
       }
     }
   }
 
   describe("The assignVariable method") {
-    val possibleInstances = for {
-      p <- someProperties
-      i <- 0 until p.dimension
-      j <- 0 until p.dimension
-      if om.lteq(p.typeOf(j), p.typeOf(i))
-    } yield (p, i, j)
-    val table = Table(("p", "i", "j"), possibleInstances: _*)
-
     it("makes variables possibly weak aliases") {
-      forAll(table) { (p, i, j) =>
-        assert(p.assignVariable(i, j).mayBeWeakAliases(i, j))
+      forAll(someAssignVariable) { (p, dst, src) =>
+          assert(p.assignVariable(dst, src).mayBeWeakAliases(dst, src))
       }
     }
   }
 
-  describe(s"The assignFieldToVariable method") {
-    val possibleInstances = for {
-      p <- someProperties
-      i <- 0 until p.dimension
-      j <- 0 until p.dimension
-      f <- om.fieldsOf(p.typeOf(j))
-      if om.lteq(om.typeOf(f), p.typeOf(i))
-      if !p.mustBeNull(j)
-    } yield (p, i, j, f)
-    val table = Table(("p", "i", "j", "f"), possibleInstances: _*)
-
-    it(s"makes variables possibly share if source is not null") {
-      forAll(table) { (p, i, j, f) =>
-        if (!p.mustBeNull(j, Seq(f))) assert(p.assignFieldToVariable(i, j, f).mayShare(i, j) )
+  describe("The assignFieldToVariable method") {
+    it("makes variables possibly share if source and target are not null") {
+      forAll(someAssignFieldToVar) { (p, i, j, f) =>
+        whenever(!p.mustBeNull(i) && !p.mustBeNull(j, Seq(f))) {
+          assert(p.assignFieldToVariable(i, j, f).mayShare(i, j))
+        }
       }
     }
     it("propagate possibly nullness") {
-      forAll(table) { (p, i, j, f) =>
-        if (p.mayBeNull(j, Seq(f))) assert(p.assignFieldToVariable(i, j, f).mayBeNull(i))
+      forAll(someAssignFieldToVar) { (p, i, j, f) =>
+        whenever(p.mayBeNull(j, Seq(f))) {
+          assert(p.assignFieldToVariable(i, j, f).mayBeNull(i))
+        }
       }
     }
-    it("propagate possibly non nullness") {
-      forAll(table) { (p, i, j, f) =>
-        if (!p.mustBeNull(j, Seq(f))) assert(!p.assignFieldToVariable(i, j, f).mustBeNull(i))
+    it("propagate possibly non nullness if target is not null") {
+      forAll(someAssignFieldToVar) { (p, i, j, f) =>
+        whenever(!p.mustBeNull(i) && !p.mustBeNull(j, Seq(f))) {
+          assert(!p.assignFieldToVariable(i, j, f).mustBeNull(i))
+        }
       }
     }
   }
 
   describe("The assignVariableToField method") {
-    val possibleInstances = for {
-      p <- someProperties
-      i <- 0 until p.dimension
-      if !p.mustBeNull(i)
-      f <- om.fieldsOf(p.typeOf(i))
-      j <- 0 until p.dimension
-      if om.lteq(p.typeOf(j), om.typeOf(f))
-    } yield (p, i, f, j)
-    val table = Table(("p", "i", "f", "j"), possibleInstances: _*)
-
-    it("makes variables possibly share if source is not null") {
-      forAll(table) { (p, i, f, j) =>
-        if (!p.mustBeNull(j)) assert(p.assignVariableToField(i, f, j).mayShare(i, j))
+    it("makes variables possibly share if source and target variable are not null") {
+      forAll(someAssignVarToField) { (p, i, f, j) =>
+        whenever(!p.mustBeNull(i) && !p.mustBeNull(j)) {
+          assert(p.assignVariableToField(i, f, j).mayShare(i, j))
+        }
       }
     }
     it("propagate possibly nullness") {
-      forAll(table) { (p, i, f, j) =>
-        if (p.mayBeNull(j)) assert(p.assignVariableToField(i, f, j).mayBeNull(i, Seq(f)))
+      forAll(someAssignVarToField) { (p, i, f, j) =>
+        whenever(p.mayBeNull(j)) {
+          assert(p.assignVariableToField(i, f, j).mayBeNull(i, Seq(f)))
+        }
       }
     }
-    it("propagate possibly non nullness if destination is not null") {
-      forAll(table) { (p, i, f, j) =>
-        if (!p.mustBeNull(j))
+    it("propagate possibly non nullness if target variable is not null") {
+      forAll(someAssignVarToField) { (p, i, f, j) =>
+        whenever(!p.mustBeNull(i) && !p.mustBeNull(j)) {
           assert(!p.assignVariableToField(i, f, j).mustBeNull(i, Seq(f)))
+        }
       }
     }
   }
 
   describe("The cast method") {
-    // checks may be made more precise my improving the selection of types 
-    // to use for casting
-    val possibleInstances = for {
-      p <- someProperties
-      i <- 0 until p.dimension
-      t = p.typeOf(i)
-    } yield (p, i, t)
-    val table = Table(("p", "i", "t"), possibleInstances: _*)
-
     it("propagate possibly nullness") {
-      forAll(table) { (p, i, t) =>
-        if (p.mayBeNull(i)) assert(p.castVariable(i, t).mayBeNull(i))
+      forAll(someCast) { (p, i, t) =>
+        whenever(p.mayBeNull(i)) {
+          assert(p.castVariable(i, t).mayBeNull(i))
+        }
       }
     }
     it("propagate possibly non-nullness") {
-      forAll(table) { (p, i, t) =>
-        if (!p.mustBeNull(i)) assert(!p.castVariable(i, t).mustBeNull(i))
+      forAll(someCast) { (p, i, t) =>
+        whenever(!p.mustBeNull(i)) {
+          assert(!p.castVariable(i, t).mustBeNull(i))
+        }
       }
     }
   }
 
   describe("The addFreshVariable method") {
-    val possibleInstances = for {
-      p <- someProperties
-      t <- p.fiber
-    } yield (p, t)
-    val table = Table(("p", "t"), possibleInstances: _*)
-
     it("add a variable") {
-      forAll(table) { (p, t) => assert(p.addFreshVariable(t).dimension === p.dimension + 1) }
+      forAll(someProperties) { (p) =>
+        forAll(someTypes) { (t) =>
+          assert(p.addFreshVariable(t).dimension === p.dimension + 1)
+        }
+      }
     }
 
-    it("adds a variable which may not share, not alias and not be null") {
-      forAll(table) { (p, t) =>
-        val p2 = p.addFreshVariable(t)
-        assert(!p2.mustBeNull(p.dimension))
-        assert(p2.dimension === p.dimension + 1)
-        for (j <- 0 until p.dimension) {
-          assert(!p2.mustShare(p.dimension, j))
-          assert(!p2.mustBeAliases(p.dimension, j))
+    it("adds a variable which cannnot share and alias with other variables and cannot be null") {
+      forAll(someProperties) { (p) =>
+        forAll(someTypes) { (t) =>
+          val p2 = p.addFreshVariable(t)
+          assert(!p2.mustBeNull(p.dimension))
+          assert(p2.dimension === p.dimension + 1)
+          for (j <- 0 until p.dimension) {
+            assert(!p2.mustShare(p.dimension, j))
+            assert(!p2.mustBeAliases(p.dimension, j))
+          }
         }
       }
     }
   }
 
   describe("The addUnknownVariable method") {
-    val possibleInstances = for {
-      p <- someProperties
-      t <- p.fiber
-    } yield (p, t)
-    val table = Table(("p", "t"), possibleInstances: _*)
-
-    it("add a variable") {
-      forAll(table) { (p, t) => assert(p.addUnknownVariable(t).dimension === p.dimension + 1) }
+    forAll(someProperties) { (p) =>
+      forAll(someTypes) { (t) =>
+        assert(p.addUnknownVariable(t).dimension === p.dimension + 1)
+      }
     }
   }
 }
