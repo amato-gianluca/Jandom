@@ -11,6 +11,14 @@ import org.scalatest.prop.TableFor1
  */
 trait PreciseDefiniteNullness extends ObjectDomainSuite {
 
+  describe("The bottom element") {
+    it("has all variable definitively null") {
+      forAll (someFibersAndVars) { (fiber, i) => 
+        assert(dom.bottom(fiber).mustBeNull(i))
+      }
+    }
+  }
+  
   describe("The assignNull method") {
     it("makes variable definitively null") {
       forAll (somePropertiesAndVars) { (p,i) =>

@@ -21,9 +21,11 @@ package it.unich.jandom.domains.objects
 import scala.collection.breakOut
 import scala.collection.Set
 import it.unich.jandom.utils.DisjointSets
+import scala.annotation.tailrec
 
 /**
- * The domain for the aliasing domain.
+ * The domain for definite weak aliasing. Two identifiers are weak aliased if either they are
+ * both null, or they point to the same location. 
  * @author Gianluca Amato <gamato@unich.it>
  */
 class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
@@ -82,11 +84,44 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     private def isFirstLevel(n: Node): Boolean = { labels contains Some(n) }
     
     /**
-     * Returns the glb approximation of the types for the node n
+     * Returns the node associated to a field, or `None` otherwise
+     */
+    private def nodeOf(v: Int, fs: Iterable[om.Field]): Option[Node] = {
+      val on = labels(v)
+      if (on.isEmpty) None else nodeOf(on.get,fs)
+    }
+    
+    /**
+     * Follow the chain of fields starting from node `n` and returns the nodes we reach, 
+     * or `None` if some fields is not defined in the graph. 
+     */
+    @tailrec
+    private def nodeOf(n: Node, fs: Iterable[om.Field]): Option[Node] = {
+      if (fs.isEmpty)
+        Some(n)
+      else edges(n).get(fs.head) match {
+        case None =>  None
+        case Some(nnew) => nodeOf(nnew, fs.tail) 
+      }            
+    }
+        
+    /**
+     * Returns the glb approximation of the 1st level types for the node n
      */
     private def nodeType(n: Node): Option[om.Type] = {      
-      om.glbApprox(for ((Some(`n`), t) <- labels zip types) yield t)
+      om.glbApprox(for ((Some(`n`), t) <- labels zip types) yield t)    
     }
+        
+    /**
+     * Returns a glb approximation of all types pointing to node n
+     */
+    private def completeNodeType(n: Node): Option[om.Type] = {
+      val firstLevels = for ((Some(`n`), t) <- labels zip types) yield t
+      val secondLevels = for ((_,span) <- edges; (f, `n`) <- span) yield om.typeOf(f)
+      om.glbApprox(firstLevels ++ secondLevels)
+    }
+    
+    def typeOf(v: Int, fs: Iterable[om.Field]) = nodeOf(v,fs) flatMap completeNodeType
 
     /**
      * Returns the new set of edges of node `n` assuming its type becomes t.
@@ -382,7 +417,7 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     def fiber = types
 
     def dimension = types.size
-
+      
     def addUnknownVariable(t: om.Type): Property = {
       new Property(labels :+ None, edges, types :+ t)
     }
@@ -478,25 +513,18 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         bottom
       else
         this
-    }
+    }        
 
-    def mustBeNull(v: Int, fieldseq: Seq[om.Field]) = {
-      val loc = labelOf(v)
-      (loc, fieldseq) match {
-        case (None, _) => true	
-        case (Some(node), Seq(f)) => ! edges(node).isDefinedAt(f)
-        case _ => false
-      }
-    }
-
-    def mayBeNull(v: Int, fieldseq: Seq[om.Field]) = true
+    def mustBeNull(v: Int, fs: Iterable[om.Field]) = nodeOf(v, fs).isEmpty        
     
-    def mayShare(v1: Int, v2: Int) = (labels(v1) ,labels(v2)) match {
-      case (Some(n1), Some(n2)) => true
+    def mayBeNull(v: Int, fs: Iterable[om.Field]) = true
+    
+    def mayShare(v1: Int, fs1: Iterable[om.Field], v2: Int, fs2: Iterable[om.Field]) = (nodeOf(v1,fs1), nodeOf(v2,fs2)) match {
+      case (Some(n1), Some(n2)) => true 
       case _ => false      
     }
     
-    def mustShare(v1: Int, v2: Int) = false
+    def mustShare(v1: Int, fs1: Iterable[om.Field], v2: Int, fs2: Iterable[om.Field]) = false
     
     def mayBeAliases(v1: Int, v2: Int) = labels(v1).isDefined && labels(v2).isDefined && om.mayBeAliases(types(v1),types(v2))
     

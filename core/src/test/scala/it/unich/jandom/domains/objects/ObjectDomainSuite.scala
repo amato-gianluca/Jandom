@@ -35,20 +35,73 @@ trait ObjectDomainSuite extends CartesianFiberedDomainSuite with TableDrivenProp
   val om: ObjectModel
   val dom: ObjectDomain[om.type]
 
-  val somePropertiesAndTwoVars = Table((someProperties.heading, "v1", "v2"),
-    (for (p <- someProperties; v1 <- 0 until p.dimension; v2 <- 0 until p.dimension) yield (p, v1, v2)): _*)
-
   val someAssignVariable = Table((someProperties.heading, "dst", "src"),
-    (for (p <- someProperties; dst <- 0 until p.dimension; src <- 0 until p.dimension; if om.lteq(p.typeOf(src), p.typeOf(dst))) yield (p, dst, src)): _*)
-    
+    (for (p <- someProperties; dst <- 0 until p.dimension; src <- 0 until p.dimension; if om.lteq(p.fiber(src), p.fiber(dst))) yield (p, dst, src)): _*)
+
   val someAssignFieldToVar = Table((someProperties.heading, "dst", "src", "f"),
-    (for (p <- someProperties; dst <- 0 until p.dimension; src <- 0 until p.dimension; f <- om.fieldsOf(p.typeOf(src)); if om.lteq(om.typeOf(f), p.typeOf(dst))) yield (p, dst, src, f)): _*)
+    (for (p <- someProperties; dst <- 0 until p.dimension; src <- 0 until p.dimension; f <- om.fieldsOf(p.fiber(src)); if om.lteq(om.typeOf(f), p.fiber(dst))) yield (p, dst, src, f)): _*)
 
   val someAssignVarToField = Table((someProperties.heading, "dst", "f", "src"),
-    (for (p <- someProperties; dst <- 0 until p.dimension; f <- om.fieldsOf(p.typeOf(dst)); src <- 0 until p.dimension; if om.lteq(p.typeOf(src), om.typeOf(f))) yield (p, dst, f, src)): _*)
+    (for (p <- someProperties; dst <- 0 until p.dimension; f <- om.fieldsOf(p.fiber(dst)); src <- 0 until p.dimension; if om.lteq(p.fiber(src), om.typeOf(f))) yield (p, dst, f, src)): _*)
 
   val someCast = Table((someProperties.heading, "v", someTypes.heading),
-    (for (p <- someProperties; v <- 0 until p.dimension; t <- someTypes; if om.lteq(t, p.typeOf(v))) yield (p, v, t)): _*)
+    (for (p <- someProperties; v <- 0 until p.dimension; t <- someTypes; if om.lteq(t, p.fiber(v))) yield (p, v, t)): _*)
+
+  describe("The top element") {
+    it("has all variables possibly and not definitively null") {
+      forAll(someFibersAndVars) { (fiber, i) =>
+        val top = dom.top(fiber)
+        assert(top.mayBeNull(i))
+        assert(!top.mustBeNull(i))
+        for (j <- om.fieldsOf(fiber(i))) {
+          assert(!top.mustBeNull(i), Seq(j))
+          for (k <- om.fieldsOf(om.typeOf(j))) assert(!top.mustBeNull(i), Seq(j, k))
+        }
+      }
+    }
+    it("has all variable pairs possibly and not definitively aliased and sharing") {
+      forAll(someFibersAndTwoVars) { (fiber, i, j) =>
+        whenever(i != j) {
+          val d = dom.top(fiber)
+          assert(d.mayBeWeakAliases(i, j))
+          assert(!d.mustBeWeakAliases(i, j))
+          assert(d.mayShare(i, j))
+          assert(!d.mustShare(i, j))
+        }
+      }
+    }
+  }
+
+  describe("The mayBeNull method") {
+    it("is true when the variables must be null") {
+      forAll(somePropertiesAndVars) { (p, v) =>
+        whenever(p.mustBeNull(v)) { assert(p.mayBeNull(v)) }
+      }
+    }
+  }
+
+  describe("The mayBeWeakAliases method") {
+    it("is true when applied to the same variable") {
+      forAll(somePropertiesAndVars) { (p, v) =>
+        assert(p.mustBeWeakAliases(v, v))
+      }
+    }
+    it("is true when two variables must be weak aliases") {
+      forAll(somePropertiesAndTwoVars) { (p, v1, v2) =>
+        whenever(p.mustBeWeakAliases(v1, v2)) { assert(p.mayBeWeakAliases(v1, v2)) }
+      }
+    }
+    it("is true when two variables must be both null") {
+      forAll(somePropertiesAndTwoVars) { (p, v1, v2) =>
+        whenever(p.mustBeNull(v1) && p.mustBeNull(v2)) { assert(p.mayBeWeakAliases(v1, v2)) }
+      }
+    }
+    it("is true when two variables may be aliases") {
+      forAll(somePropertiesAndTwoVars) { (p, v1, v2) =>
+        whenever(p.mayBeAliases(v1, v2)) { assert(p.mayBeWeakAliases(v1, v2)) }
+      }
+    }
+  }
 
   describe("The mayShare method") {
     it("is true when two variables may be aliased") {
@@ -59,6 +112,11 @@ trait ObjectDomainSuite extends CartesianFiberedDomainSuite with TableDrivenProp
     it("is true when two variables must share") {
       forAll(somePropertiesAndTwoVars) { (p, v1, v2) =>
         whenever(p.mustShare(v1, v2)) { assert(p.mayShare(v1, v2)) }
+      }
+    }
+    it("is false if a variable is definitively null") {
+      forAll(somePropertiesAndTwoVars) { (p, v1, v2) =>
+        whenever(p.mustBeNull(v1) || p.mustBeNull(v2)) { !p.mayShare(v1, v2) }
       }
     }
   }
@@ -74,7 +132,14 @@ trait ObjectDomainSuite extends CartesianFiberedDomainSuite with TableDrivenProp
   describe("The assignVariable method") {
     it("makes variables possibly weak aliases") {
       forAll(someAssignVariable) { (p, dst, src) =>
-          assert(p.assignVariable(dst, src).mayBeWeakAliases(dst, src))
+        assert(p.assignVariable(dst, src).mayBeWeakAliases(dst, src))
+      }
+    }
+    it("propagates possibly sharing") {
+      forAll(someAssignVariable) { (p, dst, src) =>
+        forAll(Table("vother", (0 until p.dimension): _*)) { (vother) =>
+          whenever(p.mayShare(src, vother)) { p.assignVariable(dst, src).mayShare(dst, src) }
+        }
       }
     }
   }

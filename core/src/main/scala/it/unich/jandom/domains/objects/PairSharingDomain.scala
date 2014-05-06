@@ -79,8 +79,8 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
 
     type Domain = PairSharingDomain.this.type
 
-    def domain = PairSharingDomain.this
-
+    def domain = PairSharingDomain.this    
+      
     def dimension = rtypes.size
 
     def fiber = rtypes.reverse
@@ -95,8 +95,6 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
 
     def isEmpty = false
     
-    def typeOf(v: Int) = rtypes(dimension - 1 - v)
-
     def union(that: Property) = {
       assert(dimension == that.dimension)
       new Property(ps union that.ps, rtypes)
@@ -169,6 +167,11 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
       connectFull(that, common).delVariables(dimension - common until dimension)
     }
 
+    def typeOf(v: Int, fs: Iterable[om.Field]) = 
+      if (fs.isEmpty) Some(rtypes(dimension - v - 1)) else 
+        if (mustBeNull(v)) None else 
+          Some(om.typeOf(fs.last))
+      
     def addFreshVariable(t: om.Type) =
       if (om.mayShare(t, t)) new Property(ps + UP((dimension, dimension)), t +: rtypes) else new Property(ps, t +: rtypes)
 
@@ -204,15 +207,17 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
 
     def testNotNull(v: Int) = if (mustBeNull(v)) bottom else this
   
-    def mayBeNull(v: Int, fieldseq: Seq[om.Field]) = true 
+    def mayBeNull(v: Int, fs: Iterable[om.Field]) = true 
       
-    def mustBeNull(v: Int, fieldseq: Seq[om.Field]) = !(ps contains UP(v, v))
-
-    def mayShare(v1:Int, v2: Int) = ps contains UP(v1,v2)
+    def mustBeNull(v: Int, fs: Iterable[om.Field]) = !(ps contains UP(v, v))
     
-    def mustShare(v1: Int, v2: Int) = false
+    def mayShare(v1: Int, fs1: Iterable[om.Field], v2: Int, fs2: Iterable[om.Field]) = 
+      (ps contains UP(v1,v2)) &&  om.mayShare(om.typeOf(fs1.last), om.typeOf(fs2.last))
+        
+    def mustShare(v1: Int, fs1: Iterable[om.Field], v2: Int, fs2: Iterable[om.Field]) = false
     
-    def mayBeAliases(v1: Int, v2: Int) = mayShare(v1,v2)
+    def mayBeAliases(v1: Int, v2: Int) = 
+      (ps contains UP(v1,v2)) && om.mayBeAliases(rtypes(dimension - v1 - 1), rtypes(dimension - v2 - 2)) 
     
     def mustBeAliases(v1: Int, v2: Int) = false
     

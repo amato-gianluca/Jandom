@@ -19,7 +19,7 @@
 package it.unich.jandom.domains.objects
 
 /**
- * An object model encapsulate all the informations on the object model of a language.
+ * An ObjectModel encapsulate all the informations on the object model of a language.
  * It also encapsulated differences on the low level libraries used to interpret
  * programs (such as Soot vs ASM vs ..)
  * @author Gianluca Amato <gamato@unich.it>

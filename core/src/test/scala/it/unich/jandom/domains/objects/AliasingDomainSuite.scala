@@ -136,7 +136,7 @@ trait AliasingDomainSuiteParameters {
 }
 
 /**
- * The test suite for the aliasing domain.
+ * The test suite for the aliasing domain
  * @author Gianluca Amato <gamato@unich.it>
  *
  */
@@ -209,17 +209,7 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
     }
   }
 
-  describe("The top ALPs graph") {
-    it("has no variable definitively null") {
-      forAll(someFibersAndVars) { (fiber, i) =>
-        val top = dom.top(fiber)
-        assert(!top.mustBeNull(i))
-        for (j <- om.fieldsOf(om.tsuper)) {
-          assert(!top.mustBeNull(i), Seq(j))
-          for (k <- om.fieldsOf(om.typeOf(j))) assert(!top.mustBeNull(i), Seq(j, k))
-        }
-      }
-    }
+  describe("The top ALPs graph") {    
     it("has all reachable identifiers mapped to a node") {
       forAll(someFibersAndVars) { (fiber, i) =>
         val top = dom.top(fiber)

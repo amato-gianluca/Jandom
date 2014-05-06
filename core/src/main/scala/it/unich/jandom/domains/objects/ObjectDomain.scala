@@ -31,12 +31,12 @@ import it.unich.jandom.domains.CartesianFiberedProperty
  */
 trait ObjectDomain[+OM <: ObjectModel] extends CartesianFiberedDomain {
 
+  type Property <: ObjectProperty[Property]
+
   /**
    * The object model of this domain
    */
   val om: OM
-
-  type Property <: ObjectProperty[Property]
 
   /**
    * The type of the fiber components is `om.Type`.
@@ -50,10 +50,13 @@ trait ObjectDomain[+OM <: ObjectModel] extends CartesianFiberedDomain {
     this: P =>
 
     /**
-     * Returns the type of a variable
+     * Returns the type of an object reachable by following a sequence of fields. The 
+     * returned type should be a super-type of all the object possibly reachable with
+     * this sequence of fields. Returns `None` if the field sequence stops due to a
+     * null pointer.
      */
-    def typeOf(v: Int): om.Type
-
+    def typeOf(v: Int, fs: Iterable[om.Field]): Option[om.Type]     
+      
     /**
      * Add a new variable. The new variable may be in whatever relationship with the
      * old ones.
@@ -90,31 +93,51 @@ trait ObjectDomain[+OM <: ObjectModel] extends CartesianFiberedDomain {
     def assignFieldToVariable(dst: Int, src: Int, field: om.Field): P
 
     /**
-     * Change the type of variable i-th. We assume the new type is comparable with the old one.
+     * Change the type of variable v-th. We assume the new type is comparable with the old one.
      */
     def castVariable(v: Int, newtype: om.Type): P
 
     /**
+     * Returns true if the variable v might be null
+     */
+    def mustBeNull(v: Int): Boolean = mustBeNull(v, Iterable())
+    
+    /**
+     * Returns true if the variable v must be null
+     */    
+    def mayBeNull(v: Int): Boolean = mayBeNull(v, Iterable())
+    
+    /**
      * Returns true if the location obtained by v following fields in fieldseq is definitively
      * null. If some intermediate value is definitively null, it returns true.
      */
-    def mustBeNull(v: Int, fieldseq: Seq[om.Field] = Seq()): Boolean
+    def mustBeNull(v: Int, fieldseq: Iterable[om.Field]): Boolean
 
     /**
      * Returns true if the location obtained by v following fields in fieldseq may be
      * null. If some intermediate value is definitively null, it returns true.
      */
-    def mayBeNull(v: Int, fieldseq: Seq[om.Field] = Seq()): Boolean
+    def mayBeNull(v: Int, fieldseq: Iterable[om.Field]): Boolean
 
     /**
      * Returns true if two variables may share
      */
-    def mayShare(v1: Int, v2: Int): Boolean
+    def mayShare(v1: Int, v2: Int): Boolean = mayShare(v1, Iterable(), v2, Iterable())
+    
+    /**
+     * Returns true if two fields may share
+     */
+    def mayShare(v1: Int, f1: Iterable[om.Field], v2: Int, f2: Iterable[om.Field]): Boolean
 
     /**
      * Returns true if two variables must share
      */
-    def mustShare(v1: Int, v2: Int): Boolean
+    def mustShare(v1: Int, v2: Int): Boolean =  mustShare(v1, Iterable(), v2, Iterable())
+    
+    /**
+     * Returns true if two fields must share
+     */
+    def mustShare(v1: Int, f1: Iterable[om.Field], v2: Int, f2: Iterable[om.Field]): Boolean
 
     /**
      * Returns true if two variables may be aliases, i.e. if they might point to the same
@@ -142,12 +165,12 @@ trait ObjectDomain[+OM <: ObjectModel] extends CartesianFiberedDomain {
     def mustBeWeakAliases(v1: Int, v2: Int): Boolean
 
     /**
-     * Returns the property after the successful completion of the test `v == null`
+     * Returns the result after the successful completion of the test `v == null`
      */
     def testNull(v: Int): P
 
     /**
-     * Returns the property after the successful completion of the test `v != null`
+     * Returns the result after the successful completion of the test `v != null`
      */
     def testNotNull(v: Int): P
   }

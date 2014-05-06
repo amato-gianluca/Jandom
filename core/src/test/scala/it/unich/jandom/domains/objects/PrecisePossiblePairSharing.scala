@@ -19,25 +19,36 @@
 package it.unich.jandom.domains.objects
 
 /**
- * A trait for testing object domains which precisely implements definite weak aliasing
+ * This test is for domains which precisely implements possible
+ * pair sharing (or, in turn, definite non pair-sharing).
  * @author Gianluca Amato <gamato@unich.it>
  *
  */
-trait PreciseDefiniteWeakAliasing extends ObjectDomainSuite {
-
+trait PrecisePossiblePairSharing extends ObjectDomainSuite {
   describe("The bottom element") {
-    it("has all variables definitively weak aliased") {
+    it("has all variables definitively not sharing") {
       forAll(someFibersAndTwoVars) { (fiber, i, j) =>
-          assert(dom.bottom(fiber).mustBeWeakAliases(i, j))
+        assert(!dom.bottom(fiber).mayShare(i, j))
       }
     }
   }
-
-  describe("The assignVariable method") {
-    it("makes variables definitively aliases") {
-      forAll(someAssignVariable) { (p, dst, src) =>
-        assert(p.assignVariable(dst, src).mustBeWeakAliases(dst, src))
+  
+  describe("The assignNull method") {
+    it("makes variable definitively not sharing") {
+      forAll(somePropertiesAndTwoVars) { (p,i,j) =>
+        assert (! p.assignNull(i).mayShare(i,j))
       }
+    }
+  }
+  
+  describe("The addFreshVariable method") {
+    it("creates a variable definitively not sharing") {
+      forAll(somePropertiesAndVars) { (p,i) =>
+        forAll(someTypes) { (t) => 
+          val newp = p.addFreshVariable(t)
+          assert(! p.addFreshVariable(t).mayShare(p.dimension, i), s"Variable ${i} share with ${p.dimension} in ${newp}")
+        }
+      }  
     }
   }
 }

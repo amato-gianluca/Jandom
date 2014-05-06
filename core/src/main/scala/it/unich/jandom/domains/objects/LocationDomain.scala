@@ -19,8 +19,8 @@
 package it.unich.jandom.domains.objects
 
 /**
+ * A location domain is an abstraction of locations is a program.
  * @author Gianluca Amato <gamato@unich.it>
- *
  */
 trait LocationDomain[OM <: ObjectModel, Node] {
   val om: OM   
@@ -40,7 +40,11 @@ trait LocationDomain[OM <: ObjectModel, Node] {
     def addFreshNodes(nodes: Iterable[Node]): Property
     def addChildren(parent: Node, children: Iterable[Node]): Property
     def delChildren(parent: Node, children: Set[Node]): Property
-    def delNodes(nodes: Set[Node]): Property
+    def delNodes(nodes: collection.Set[Node]): Property
+    /**
+     * Only keeps nodes which satisy `p`
+     */
+    def filterNodes(p: Node => Boolean): Property 
     def mkString(nodeNames: Node => String): String
     def mayShare(n1: Node, n2: Node): Boolean
     def mayBeAliases(n1: Node, n2: Node): Boolean

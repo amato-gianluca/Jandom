@@ -19,9 +19,8 @@
 package it.unich.jandom.domains.objects
 
 import org.scalatest.FunSpec
-import org.scalatest.FlatSpec
-import org.scalatest.PrivateMethodTester
 import org.scalatest.prop.Tables._
+import org.scalatest.PrivateMethodTester
 
 trait ALPsDomainSuiteParameters {
   import scala.language.implicitConversions
@@ -36,6 +35,7 @@ trait ALPsDomainSuiteParameters {
 
   val bot4 = dom.bottom(4)
   val top4 = dom.top(4)
+
   val g1 = {
     val n0 = Node()
     val n1 = Node()
@@ -133,7 +133,7 @@ trait ALPsDomainSuiteParameters {
     dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', Node()), (n1, 'a', Node()), (n1, 'b', Node())), 4)
   }
 
-  val someProperties = Table("property",g1, g2, g3, g4, g5, bot4, top4, g1a, g1b, g1c, g1d, g1e, g1f, g1bb)
+  val someProperties = Table("property", g1, g2, g3, g4, g5, bot4, top4, g1a, g1b, g1c, g1d, g1e, g1f, g1bb)
 }
 
 /**
@@ -141,40 +141,42 @@ trait ALPsDomainSuiteParameters {
  * @author Gianluca Amato <gamato@unich.it>
  *
  */
-class ALPsDomainSuite extends FunSpec with ALPsDomainSuiteParameters with PrivateMethodTester with ObjectDomainSuite {
-  import ALPsDomain._
+class ALPsDomainSuite extends FunSpec with ALPsDomainSuiteParameters with PrivateMethodTester
+  with ObjectDomainSuite with PreciseFiberChange with PreciseObjectDomain with PreciseDefiniteNullness
+  with PreciseDefiniteWeakAliasing with PrecisePossiblePairSharing {
+  {
 
-  def ALPsMorphism(g1: dom.Property, g2: dom.Property, m: Morphism) {
-    it("preserve labels") {
-      for (i <- 0 until g1.dimension) {
-        assert((g1.labelOf(i) flatMap m) === g2.labelOf(i))
-        for (f <- om.fieldsOf(g1.typeOf(i)))
-          assert((g1.labelOf(i, f) flatMap m) === g2.labelOf(i, f))
+    import ALPsDomain._
+
+    def ALPsMorphism(g1: dom.Property, g2: dom.Property, m: Morphism) {
+      it("preserve labels") {
+        for (i <- 0 until g1.dimension) {
+          assert((g1.labelOf(i) flatMap m) === g2.labelOf(i))
+          for (f <- om.fieldsOf(g1.typeOf(i)))
+            assert((g1.labelOf(i, f) flatMap m) === g2.labelOf(i, f))
+        }
       }
     }
-  }
 
-  def nonExtremalGraph[OM <: ObjectModel](g: dom.Property) {
-    val bottom = g.bottom
-    val top = g.top
-    describe("has a morphism to bottom which") {
-      val Some((1, m)) = g.tryMorphism(bottom)
-      it should behave like ALPsMorphism(g, bottom, m)
+    def nonExtremalGraph[OM <: ObjectModel](g: dom.Property) {
+      val bottom = g.bottom
+      val top = g.top
+      describe("has a morphism to bottom which") {
+        val Some((1, m)) = g.tryMorphism(bottom)
+        it should behave like ALPsMorphism(g, bottom, m)
+      }
+      describe("has a morphism from top which") {
+        val Some((-1, m)) = g.tryMorphism(top)
+        it should behave like ALPsMorphism(top, g, m)
+      }
+      it should behave like nonExtremalProperty(g)
     }
-    describe("has a morphism from top which") {
-      val Some((-1, m)) = g.tryMorphism(top)
-      it should behave like ALPsMorphism(top, g, m)
-    }
-    it should behave like nonExtremalProperty(g)
-  }
 
-  for (fiber <- someFibers) {
-    val fiberString = fiber.mkString("[ ", ", ", " ]")
-    describe(s"The bottom ALPs graph on the fiber ${fiberString}") {
-      val bot = dom.bottom(fiber)
+    describe("The bottom ALPs graph") {
 
       it("has all reachable identifiers labeled by null") {
-        for (i <- 0 until fiber.size) {
+        forAll(someFibersAndVars) { (fiber, i) =>
+          val bot = dom.bottom(fiber)
           assert(bot.labelOf(i).isEmpty)
           for (f <- om.fieldsOf(om.tsuper)) {
             assert(bot.labelOf(i, f).isEmpty)
@@ -182,7 +184,8 @@ class ALPsDomainSuite extends FunSpec with ALPsDomainSuiteParameters with Privat
         }
       }
       it("has all identifiers definitively null") {
-        for (i <- 0 until fiber.size) {
+        forAll(someFibersAndVars) { (fiber, i) =>
+          val bot = dom.bottom(fiber)
           assert(bot.mustBeNull(i))
           for (j <- om.fieldsOf(om.tsuper)) {
             assert(bot.mustBeNull(i), Seq(j))
@@ -190,15 +193,28 @@ class ALPsDomainSuite extends FunSpec with ALPsDomainSuiteParameters with Privat
           }
         }
       }
-      it("is strictly smaller than top") { bot < dom.top(fiber.size) }
-      it("is not top") { assert(!bot.isTop) }
-      it("is not empty") { assert(!bot.isEmpty) }
+      it("is strictly smaller than top") {
+        forAll(someFibers) { (fiber) =>
+          dom.bottom(fiber) < dom.top(fiber)
+        }
+      }
+      it("is not top") {
+        forAll(someFibers) { (fiber) =>
+          assert(!dom.bottom(fiber).isTop)
+        }
+      }
+
+      it("is not empty") {
+        forAll(someFibers) { (fiber) =>
+          assert(!dom.bottom(fiber).isEmpty)
+        }
+      }
     }
 
-    describe(s"The top ALPs graph on the fiber ${fiberString}") {
-      val top = dom.top(fiber)
+    describe("The top ALPs graph") {
       it("has no variable definitively null") {
-        for (i <- 0 until fiber.size) {
+        forAll(someFibersAndVars) { (fiber, i) =>
+          val top = dom.top(fiber)
           assert(!top.mustBeNull(i))
           for (j <- om.fieldsOf(om.tsuper)) {
             assert(!top.mustBeNull(i), Seq(j))
@@ -207,221 +223,166 @@ class ALPsDomainSuite extends FunSpec with ALPsDomainSuiteParameters with Privat
         }
       }
       it("has all reachable identifiers mapped to a node") {
-        for (i <- 0 until fiber.size) {
+        forAll(someFibersAndVars) { (fiber, i) =>
+          val top = dom.top(fiber)
           assert(top.labelOf(i).nonEmpty)
           for (f <- om.fieldsOf(om.tsuper)) {
             assert(top.labelOf(i, f).nonEmpty)
           }
         }
       }
-      it("is strictly bigger than bottom") { top > dom.bottom(fiber.size) }
-      it("is not bottom") { assert(!top.isBottom) }
-    }
-  }
-
-  describe("The graph g1") {
-    it should behave like nonExtremalGraph(g1)
-    it("has dimension 4") { assert(g1.dimension === 4) }
-    it("is not comparable with g2") { assert(g1.tryCompareTo(g2).isEmpty) }
-    it("is not comparable with g3") { assert(g1.tryCompareTo(g3).isEmpty) }
-  }
-
-  describe("The graph g2") {
-    it should behave like nonExtremalGraph(g2)
-    it("has dimension 4") { assert(g2.dimension === 4) }
-    it("is not comparable with g1") { assert(g2.tryCompareTo(g1).isEmpty) }
-    it("is smaller than g3") { assert(g2 < g3) }
-    describe("has a morphism from g3 which") {
-      val Some((-1, m)) = g2.tryMorphism(g3)
-      it should behave like ALPsMorphism(g3, g2, m)
-    }
-  }
-
-  describe("The graph g4") {
-    it should behave like nonExtremalGraph(g4)
-    it("has dimension 4") { assert(g4.dimension === 4) }
-    it("is smaller than g4big") { assert(g4 < g4big) }
-  }
-
-  describe("The graph g5") {
-    it should behave like nonExtremalGraph(g5)
-    it("has dimension 4") { assert(g5.dimension === 4) }
-    it("is smaller than g5big") { assert(g5 < g5big) }
-  }
-
-  describe("The nodeType method") {
-    val nodeType = PrivateMethod[Option[om.Type]]('nodeType)
-    it("returns type t for nodes bounds to variables all of type t") {
-      assert((g4 invokePrivate nodeType(g4.labelOf(1).get)) === Some(om.tsuper))
-    }
-    it("returns the least type of all variables bound to the node") {
-      assert((g4 invokePrivate nodeType(g4.labelOf(0).get)) === Some(om.tsub))
-    }
-    it("returns None fot nodes not bound to variables") {
-      assert((g4 invokePrivate nodeType(g4.labelOf(0, 'a').get)) === None)
-    }
-  }
-
-  describe("The expandSpan method") {
-    val expandSpan = PrivateMethod[dom.Span]('expandSpan)
-    val span = g1.labelOf(0).get
-    val newspan = g1 invokePrivate expandSpan(span, om.tsub)
-    it("adds c field when moving from tsuper to tsub") {
-      assert(newspan isDefinedAt 'c')
-    }
-    it("does not add null fields") {
-      assert(!(newspan isDefinedAt 'b'))
-    }
-  }
-
-  describe("The assignNull method") {
-    it("makes variable definitively null") {
-      for (p <- someProperties; i <- 0 until p.dimension) {
-        assert(p.assignNull(i).mustBeNull(i))
+      it("is strictly bigger than bottom") {
+        forAll(someFibers) { (fiber) =>
+          dom.top(fiber) > dom.bottom(fiber)
+        }
+      }
+      it("is not bottom") {
+        forAll(someFibers) { (fiber) =>
+          assert(!dom.top(fiber).isBottom)
+        }
       }
     }
-    it("should produce a lesser graph than top") {
-      for (f <- someFibers; i <- 0 until f.size; if om.mayShare(f(i), f(i))) {
-        val top = dom.top(f)
-        assert(top.assignNull(i) < top)
+
+    describe("The graph g1") {
+      it should behave like nonExtremalGraph(g1)
+      it("has dimension 4") { assert(g1.dimension === 4) }
+      it("is not comparable with g2") { assert(g1.tryCompareTo(g2).isEmpty) }
+      it("is not comparable with g3") { assert(g1.tryCompareTo(g3).isEmpty) }
+    }
+
+    describe("The graph g2") {
+      it should behave like nonExtremalGraph(g2)
+      it("has dimension 4") { assert(g2.dimension === 4) }
+      it("is not comparable with g1") { assert(g2.tryCompareTo(g1).isEmpty) }
+      it("is smaller than g3") { assert(g2 < g3) }
+      describe("has a morphism from g3 which") {
+        val Some((-1, m)) = g2.tryMorphism(g3)
+        it should behave like ALPsMorphism(g3, g2, m)
       }
     }
-    it("maps g1.assignNull(2) to g1a") {
-      assert(g1.assignNull(2) === g1a)
-    }
-  }
 
-  describe("The assignVariable method") {
-    it("makes variables definitively aliases if they are not possibly null") {
-      for (
-        p <- someProperties; i <- 0 until p.dimension; j <- 0 until p.dimension;
-        if om.mayBeAliases(p.typeOf(i), p.typeOf(j))
-      ) {
-        assert(p.assignVariable(i, j).mustBeWeakAliases(i, j), s"Variables $i and $j should be definitively aliases in $p")
+    describe("The graph g4") {
+      it should behave like nonExtremalGraph(g4)
+      it("has dimension 4") { assert(g4.dimension === 4) }
+      it("is smaller than g4big") { assert(g4 < g4big) }
+    }
+
+    describe("The graph g5") {
+      it should behave like nonExtremalGraph(g5)
+      it("has dimension 4") { assert(g5.dimension === 4) }
+      it("is smaller than g5big") { assert(g5 < g5big) }
+    }
+
+    describe("The nodeType method") {
+      val nodeType = PrivateMethod[Option[om.Type]]('nodeType)
+      it("returns type t for nodes bounds to variables all of type t") {
+        assert((g4 invokePrivate nodeType(g4.labelOf(1).get)) === Some(om.tsuper))
+      }
+      it("returns the least type of all variables bound to the node") {
+        assert((g4 invokePrivate nodeType(g4.labelOf(0).get)) === Some(om.tsub))
+      }
+      it("returns None for nodes not bound to variables") {
+        assert((g4 invokePrivate nodeType(g4.labelOf(0, 'a').get)) === None)
       }
     }
-    it("maps g1.assignVariable(1,2) to g1") {
-      assert(g1.assignVariable(1, 2) === g1)
-    }
-    it("maps g1.assignVariable(2,3) to g1a") {
-      assert(g1.assignVariable(2, 3) === g1a)
-    }
-  }
 
-  describe("The assignFieldToVariable method") {
-    it("gives bottom when the src variable is definitively null") {
-      assert(g1.assignFieldToVariable(2, 3, 'a').isBottom)
-    }
-    it("maps g1.assignFieldToVariable(2, 2, 'b') to g1b") {
-      assert(g1.assignFieldToVariable(2, 2, 'b') === g1b)
-    }
-  }
-
-  describe("The assignVariableToField method") {
-    it("gives bottom when the dst variable is definitively null") {
-      assert(g1.assignVariableToField(3, 'a', 1).isBottom)
-    }
-    it("it maps  g1.assignVariableToField(1, 'b', 3) to g2") {
-      assert(g1.assignVariableToField(1, 'b', 3) === g2)
-    }
-    it("it maps  g1.assignVariableToField(2, 'a', 2) to g5") {
-      assert(g1.assignVariableToField(2, 'a', 2) === g5)
-    }
-  }
-
-  describe("The cast method") {
-    it("maps g1.castVariable(0,tsub) to g1c") {
-      assert(g1.castVariable(0, om.tsub) === g1c)
-    }
-  }
-
-  describe("The addFreshVariable method") {
-    it("maps g1.addFreshVariable(tsuper) to g1d") {
-      assert(g1.addFreshVariable(om.tsuper) === g1d)
-    }
-  }
-  
-  describe("The delVariable method") {
-    it("transforms bottom in bottom") {
-      for (fiber <- someFibers; v <- 0 until fiber.size) { 
-        assert(dom.bottom(fiber).delVariable(v).isBottom)
-      }      
-    }  
-  }
-  
-  describe("The mapVariables method") {
-    val rhos = Seq(Seq(-1, -1, -1, 0), Seq(2, 1, -1, 0), Seq(0, 1, 2, 3), Seq(3, 0, 2, 1))
-    it("transforms top in top") {
-      for (v <- 0 until top4.dimension; rho <- rhos) assert(top4.mapVariables(rho).isTop)
-    }
-    it("transforms bottom in bottom") {
-      for (v <- 0 until bot4.dimension; rho <- rhos) assert(bot4.mapVariables(rho).isBottom)
-    }
-    it("maps g1.mapVariables(Seq(1, -1, 0, 2)) to g1e") {
-      assert(g1.mapVariables(Seq(1, -1, 0, 2)) === g1e)
-    }
-    it("maps g1.mapVariables(Seq(0, 1,  -1, 2)) to g1f") {
-      assert(g1.mapVariables(Seq(0, 1, -1, 2)) === g1f)
-    }
-  }
-
-  describe("The testNull method") {
-    it("is the identity on bottom") {
-      for (size <- 0 until 4; j <- 0 until size) {
-        assert(dom.bottom(size).testNull(j).isBottom)
+    describe("The expandSpan method") {
+      val expandSpan = PrivateMethod[dom.Span]('expandSpan)
+      val span = g1.labelOf(0).get
+      val newspan = g1 invokePrivate expandSpan(span, om.tsub)
+      it("adds c field when moving from tsuper to tsub") {
+        assert(newspan isDefinedAt 'c')
+      }
+      it("does not add null fields") {
+        assert(!(newspan isDefinedAt 'b'))
       }
     }
-    it("is equivalent to assignNull for top") {
-      for (size <- 0 until 4; j <- 0 until size) {
-        assert(dom.top(size).testNull(j) === dom.top(size).assignNull(j))
+
+    describe("The assignNull method") {
+      it("maps g1.assignNull(2) to g1a") {
+        assert(g1.assignNull(2) === g1a)
       }
     }
-    it("maps g1b.testNull(0) to g1bb") {
-      assert(g1b.testNull(0) === g1bb)
-    }
-  }
 
-  describe("The testNull method") {
-    it("is identity on bottom") {
-      for (size <- 0 until 4; j <- 0 until size) {
-        assert(dom.bottom(size).testNotNull(j).isBottom)
+    describe("The assignVariable method") {
+      it("maps g1.assignVariable(1,2) to g1") {
+        assert(g1.assignVariable(1, 2) === g1)
+      }
+      it("maps g1.assignVariable(2,3) to g1a") {
+        assert(g1.assignVariable(2, 3) === g1a)
       }
     }
-    it("is identity on top") {
-      for (size <- 0 until 4; j <- 0 until size) {
-        assert(dom.top(size).testNotNull(j).isTop)
+
+    describe("The assignFieldToVariable method") {
+      it("maps g1.assignFieldToVariable(2, 2, 'b') to g1b") {
+        assert(g1.assignFieldToVariable(2, 2, 'b') === g1b)
       }
     }
-    it("is bottom if applied to a definite null variable") {
-      assert(g1.testNotNull(3).isBottom)
-    }
-  }
 
-  describe("The union method") {
-    it("yields g4union when applied to g4 union g4b") {
-      assert((g4b union g4) === g4union)
-      assert((g4 union g4b) === g4union)
+    describe("The assignVariableToField method") {
+      it("it maps g1.assignVariableToField(1, 'b', 3) to g2") {
+        assert(g1.assignVariableToField(1, 'b', 3) === g2)
+      }
+      it("it maps g1.assignVariableToField(2, 'a', 2) to g5") {
+        assert(g1.assignVariableToField(2, 'a', 2) === g5)
+      }
     }
-  }
 
-  describe("The connect method") {
-    it("passes test1") {
-      val n0 = Node()
-      val n1 = Node()
-      val n2 = Node()
-      val g1 = dom(Seq(Some(n0), Some(n0), Some(n1)), Seq(), 3)
-      val g2 = dom(Seq(Some(n2)), Seq(), 1)
-      assert(g1.connect(g2, 1) === g1.delVariable(2))
+    describe("The cast method") {
+      it("maps g1.castVariable(0,tsub) to g1c") {
+        assert(g1.castVariable(0, om.tsub) === g1c)
+      }
     }
-    it("passes test2") {
-      val n0 = Node()
-      val n1 = Node()
-      val n2 = Node()
-      val n3 = Node()
-      val g1 = dom(Seq(Some(n0), Some(n0), Some(n1)), Seq((n0, 'a', Node())), 3)
-      val g2 = dom(Seq(Some(n2), Some(n3)), Seq((n3, 'b', n2)), 2)
-      val g3 = dom(Seq(Some(n0), Some(n0), Some(n3)), Seq((n0, 'a', Node()), (n0, 'b', Node()), (n3, 'b', n2)), 3)
-      assert(g1.connect(g2, 1) === g3)
+
+    describe("The addFreshVariable method") {
+      it("maps g1.addFreshVariable(tsuper) to g1d") {
+        assert(g1.addFreshVariable(om.tsuper) === g1d)
+      }
+    }
+
+    describe("The mapVariables method") {
+      it("maps g1.mapVariables(Seq(1, -1, 0, 2)) to g1e") {
+        assert(g1.mapVariables(Seq(1, -1, 0, 2)) === g1e)
+      }
+      it("maps g1.mapVariables(Seq(0, 1,  -1, 2)) to g1f") {
+        assert(g1.mapVariables(Seq(0, 1, -1, 2)) === g1f)
+      }
+    }
+
+    describe("The testNull method") {
+      it("maps g1b.testNull(0) to g1bb") {
+        assert(g1b.testNull(0) === g1bb)
+      }
+    }
+
+    describe("The union method") {
+      it("yields g4union when applied to g4 union g4b") {
+        assert((g4b union g4) === g4union)
+        assert((g4 union g4b) === g4union)
+      }
+    }
+
+    describe("The connect method") {
+      it("passes test1") {
+        val n0 = Node()
+        val n1 = Node()
+        val n2 = Node()
+        val g1 = dom(Seq(Some(n0), Some(n0), Some(n1)), Seq(), 3)
+        val g2 = dom(Seq(Some(n2)), Seq(), 1)        
+        val gx = g1.connect(g2,1)
+        val gy = g1.delVariable(2)
+        assert(g1.connect(g2, 1) === g1.delVariable(2))
+      }
+      it("passes test2") {
+        val n0 = Node()
+        val n1 = Node()
+        val n2 = Node()
+        val n3 = Node()
+        val g1 = dom(Seq(Some(n0), Some(n0), Some(n1)), Seq((n0, 'a', Node())), 3)
+        val g2 = dom(Seq(Some(n2), Some(n3)), Seq((n3, 'b', n2)), 2)
+        val g3 = dom(Seq(Some(n0), Some(n0), Some(n3)), Seq((n0, 'a', Node()), (n0, 'b', Node()), (n3, 'b', n2)), 3)
+        assert(g1.connect(g2, 1) === g3)
+      }
     }
   }
 }

@@ -19,8 +19,8 @@
 package it.unich.jandom.domains.objects
 
 import scala.collection.breakOut
-import scala.collection.Set
 import it.unich.jandom.utils.DisjointSets
+import scala.annotation.tailrec
 
 /**
  * The domain for the ALPs domain.
@@ -48,7 +48,7 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       n -> span
     })(collection.breakOut)
     val nodes = for ((src, span) <- edges; n <- Seq(src) ++ span.values) yield n
-    new Property(labels, edges.withDefaultValue(Map.empty), types, psdom.bottom(nodes))
+    new Property(labels, edges.withDefaultValue(Map.empty), types, psdom.top(nodes))
   }
 
   def bottom(types: Seq[om.Type]) = new Property(Seq.fill(types.size)(None), Map().withDefaultValue(Map.empty), types, psdom.bottom(Iterable()))
@@ -87,8 +87,8 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
   private def getNodeType(n: Node, labels: Iterable[Option[Node]], edges: EdgeSet, types: Iterable[om.Type]) = {
     val type1 = om.glbApprox(for ((Some(`n`), t) <- labels zip types) yield t)
-    val type2 = om.glbApprox(for ( span <- edges.values; (f, `n`) <- span ) yield om.typeOf(f)) 
-    if (!type1.isDefined) type2 else if (! type2.isDefined) type1 else om.glbApprox(Seq(type1.get, type2.get))
+    val type2 = om.glbApprox(for (span <- edges.values; (f, `n`) <- span) yield om.typeOf(f))
+    if (!type1.isDefined) type2 else if (!type2.isDefined) type1 else om.glbApprox(Seq(type1.get, type2.get))
   }
 
   case class Property(labels: Seq[Option[Node]], edges: EdgeSet, types: Seq[om.Type], ps: psdom.Property) extends ObjectProperty[Property] {
@@ -117,11 +117,44 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     private def isFirstLevel(n: Node): Boolean = { labels contains Some(n) }
 
     /**
-     * Returns the glb approximation of the types for the node n
+     * Returns the node associated to a field, or `None` otherwise
+     */
+    private def nodeOf(v: Int, fs: Iterable[om.Field]): Option[Node] = {
+      val on = labels(v)
+      if (on.isEmpty) None else nodeOf(on.get, fs)
+    }
+
+    /**
+     * Follow the chain of fields starting from node `n` and returns the nodes we reach,
+     * or `None` if some fields is not defined in the graph.
+     */
+    @tailrec
+    private def nodeOf(n: Node, fs: Iterable[om.Field]): Option[Node] = {
+      if (fs.isEmpty)
+        Some(n)
+      else edges(n).get(fs.head) match {
+        case None => None
+        case Some(nnew) => nodeOf(nnew, fs.tail)
+      }
+    }
+
+    /**
+     * Returns the glb approximation of the 1st level types for the node n
      */
     private def nodeType(n: Node): Option[om.Type] = {
       om.glbApprox(for ((Some(`n`), t) <- labels zip types) yield t)
     }
+
+    /**
+     * Returns a glb approximation of all types pointing to node n
+     */
+    private def completeNodeType(n: Node): Option[om.Type] = {
+      val firstLevels = for ((Some(`n`), t) <- labels zip types) yield t
+      val secondLevels = for ((_, span) <- edges; (f, `n`) <- span) yield om.typeOf(f)
+      om.glbApprox(firstLevels ++ secondLevels)
+    }
+
+    def typeOf(v: Int, fs: Iterable[om.Field]) = nodeOf(v, fs) flatMap completeNodeType
 
     /**
      * Returns the new set of edges of node `n` assuming its type becomes t.
@@ -148,11 +181,11 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     }
 
     /**
-     *  Returns the set of nodes reachable by `n`.
+     *  Returns the set of nodes reachable by elements in `nodes`.
      */
-    private def reachableNodesFrom(n: Node) = {
-      val s = collection.mutable.Set(n)
-      val q = collection.mutable.Queue(n)
+    private def reachableNodesFrom(nodes: Seq[Node]): collection.Set[Node] = {
+      val s = collection.mutable.Set(nodes: _*)
+      val q = collection.mutable.Queue(nodes: _*)
       while (!q.isEmpty) {
         val n = q.dequeue
         for ((f, tgt) <- edges(n); if !(s contains tgt)) {
@@ -163,6 +196,11 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       s
     }
 
+    /**
+     *  Returns the set of nodes reachable by `n`.
+     */
+    private def reachableNodesFrom(n: Node): collection.Set[Node] = reachableNodesFrom(Seq(n))
+    
     /**
      * Returns the set of nodes reachable without passing from node `forbidden`
      */
@@ -242,6 +280,7 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
      * Returns the type of the variable i
      */
     def typeOf(i: Int) = types(i)
+
     /**
      * Returns, if it exists, a morphism connecting `this` and `other`.
      * @param other the other graph. We assume the two graphs are over the same fiber, since
@@ -538,24 +577,28 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       // we check whether it is possible to reach the non-common variable in this from the common
       // variables. Here sharing might help.
       val escapeFromCommon = (labels zip types) exists { case (Some(n), t) => escape(n, Some(t)); case _ => false }
-      if (!escapeFromCommon)
+      if (!escapeFromCommon) {
+        val nodes = reachableNodesFrom(labels.takeRight(common).flatten)
         Property(
           labels.dropRight(common) ++ other.labels.drop(common),
           (edges ++ other.edges) withDefaultValue Map(),
-          types.dropRight(common) ++ other.types.drop(common), ps)
-      else {
+          types.dropRight(common) ++ other.types.drop(common), ps.delNodes(nodes))
+      } else {
         // set of 1st level nodes reachable in the non-common part of this
         val reachableNodes: Set[Node] = (for (on <- labels; n <- on) yield n)(collection.breakOut)
+        val newnodes = collection.mutable.Buffer[Node]()
         val newedges =
           for ((src, span) <- edges) yield src ->
-            (if (reachableNodes contains src)
-              fullSpan(nodeType(src).get)
-            else
+            (if (reachableNodes contains src) {
+              val fs = fullSpan(nodeType(src).get)
+              newnodes ++= fs.values
+              fs
+            } else
               span)
         new Property(
           labels.dropRight(common) ++ other.labels.drop(common),
           (newedges ++ other.edges) withDefaultValue Map(),
-          types.dropRight(common) ++ other.types.drop(common), ps)
+          types.dropRight(common) ++ other.types.drop(common), ps addFreshNodes newnodes)
       }
     }
 
@@ -589,15 +632,15 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
             val (newSpan, detached) = reduceSpan(n, newType)
             val removeFromPs = detached filterNot { reachable contains _ }
             val newPs = ps.delChildren(n, removeFromPs.toSet)
-            (edges updated (n, newSpan), newPs)
+            (edges updated (n, newSpan), newPs)            
           } else {
-            (edges filterKeys { reachable contains _ }, ps)
+            (edges filterKeys { reachable contains _ } , ps filterNodes { reachable contains _ })
           }
       }
       if (v == dimension - 1)
-        new Property(labels.dropRight(1), newEdges, types.dropRight(1), newPs)
+        new Property(labels.dropRight(1), newEdges withDefaultValue Map(), types.dropRight(1), newPs)
       else
-        new Property(labels.take(v) ++ labels.drop(v + 1), newEdges, types.take(v) ++ types.drop(v + 1), newPs)
+        new Property(labels.take(v) ++ labels.drop(v + 1), newEdges withDefaultValue Map(), types.take(v) ++ types.drop(v + 1), newPs)
       // TODO: perhaps I should remove all unreachable nodes
     }
 
@@ -680,18 +723,11 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         this
     }
 
-    def mustBeNull(v: Int, fieldseq: Seq[om.Field]) = {
-      val loc = labelOf(v)
-      (loc, fieldseq) match {
-        case (None, _) => true
-        case (Some(node), Seq(f)) => !edges(node).isDefinedAt(f)
-        case _ => false
-      }
-    }
+    def mustBeNull(v: Int, fs: Iterable[om.Field]) = nodeOf(v, fs).isEmpty
 
-    def mayBeNull(v: Int, fieldseq: Seq[om.Field]) = true
+    def mayBeNull(v: Int, fs: Iterable[om.Field]) = true
 
-    def mayShare(v1: Int, v2: Int) = (labels(v1), labels(v2)) match {
+    def mayShare(v1: Int, fs1: Iterable[om.Field], v2: Int, fs2: Iterable[om.Field]) = (nodeOf(v1, fs1), nodeOf(v2, fs2)) match {
       case (Some(n1), Some(n2)) =>
         val nodes1 = reachableNodesFrom(n1)
         val nodes2 = reachableNodesFrom(n2)
@@ -699,7 +735,7 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       case _ => false
     }
 
-    def mustShare(v1: Int, v2: Int) = false
+    def mustShare(v1: Int, fs1: Iterable[om.Field], v2: Int, fs2: Iterable[om.Field]) = false
 
     def mayBeAliases(v1: Int, v2: Int) = (labels(v1), labels(v2)) match {
       case (Some(n1), Some(n2)) => om.mayBeAliases(types(v1), types(v2)) && ps.mayBeAliases(n1, n2)

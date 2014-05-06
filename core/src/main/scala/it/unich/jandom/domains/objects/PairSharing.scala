@@ -83,8 +83,12 @@ class PairSharing[OM <: ObjectModel, Node](val om: OM) extends LocationDomain[OM
       new Property(newPs.fold(remaining) { _ ++ _ })
     }
 
-    def delNodes(nodes: Set[Node]) = {
+    def delNodes(nodes: collection.Set[Node]) = {
       new Property(ps filterNot { case UP(n1, n2) => (nodes contains n1) || (nodes contains n2) })
+    }
+    
+    def filterNodes(f: Node => Boolean) = {
+      new Property(ps filter { case UP(n1, n2) => f(n1) && f(n2) })
     }
 
     def mayShare(n1: Node, n2: Node) = ps contains UP(n1, n2)
