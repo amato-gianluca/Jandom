@@ -35,7 +35,7 @@ trait LocationDomain[OM <: ObjectModel, Node] {
 
   trait LocationProperty[Property <: LocationProperty[Property]]  {
     def applyMorphism(m: Node => Option[Node]): Property
-    def applyMorphism(m: Map[Node,Node]): Property
+    def applyMorphism(m: collection.Map[Node,Node]): Property
     def union(that: Property): Property
     def addFreshNodes(nodes: Iterable[Node]): Property
     def addChildren(parent: Node, children: Iterable[Node]): Property

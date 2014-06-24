@@ -24,7 +24,7 @@ import org.scalatest.PrivateMethodTester
 
 trait ALPsDomainSuiteParameters {
   import scala.language.implicitConversions
-  import ALPsDomain._
+  import AliasingDomain._
 
   val om = ObjectDomainSuite.TestObjectModel
   val dom = ALPsDomain(om)
@@ -146,30 +146,30 @@ class ALPsDomainSuite extends FunSpec with ALPsDomainSuiteParameters with Privat
   with PreciseDefiniteWeakAliasing with PrecisePossiblePairSharing {
   {
 
-    import ALPsDomain._
+    import AliasingDomain._
 
     def ALPsMorphism(g1: dom.Property, g2: dom.Property, m: Morphism) {
       it("preserve labels") {
         for (i <- 0 until g1.dimension) {
-          assert((g1.labelOf(i) flatMap m) === g2.labelOf(i))
-          for (f <- om.fieldsOf(g1.typeOf(i)))
-            assert((g1.labelOf(i, f) flatMap m) === g2.labelOf(i, f))
+          assert((g1.labels(i) flatMap m) === g2.labels(i))
+          for (f <- om.fieldsOf(g1.types(i)))
+            assert((g1.g.nodeOf(i, f) flatMap m) === g2.g.nodeOf(i, f))
         }
       }
     }
 
-    def nonExtremalGraph[OM <: ObjectModel](g: dom.Property) {
-      val bottom = g.bottom
-      val top = g.top
+    def nonExtremalGraph[OM <: ObjectModel](p: dom.Property) {
+      val bottom = p.bottom
+      val top = p.top
       describe("has a morphism to bottom which") {
-        val Some((1, m)) = g.tryMorphism(bottom)
-        it should behave like ALPsMorphism(g, bottom, m)
+        val Some((1, m)) = p.g.tryMorphism(bottom.g)
+        it should behave like ALPsMorphism(p, bottom, m)
       }
       describe("has a morphism from top which") {
-        val Some((-1, m)) = g.tryMorphism(top)
-        it should behave like ALPsMorphism(top, g, m)
+        val Some((-1, m)) = p.g.tryMorphism(top.g)
+        it should behave like ALPsMorphism(top, p, m)
       }
-      it should behave like nonExtremalProperty(g)
+      it should behave like nonExtremalProperty(p)
     }
 
     describe("The bottom ALPs graph") {
@@ -177,9 +177,9 @@ class ALPsDomainSuite extends FunSpec with ALPsDomainSuiteParameters with Privat
       it("has all reachable identifiers labeled by null") {
         forAll(someFibersAndVars) { (fiber, i) =>
           val bot = dom.bottom(fiber)
-          assert(bot.labelOf(i).isEmpty)
+          assert(bot.labels(i).isEmpty)
           for (f <- om.fieldsOf(om.tsuper)) {
-            assert(bot.labelOf(i, f).isEmpty)
+            assert(bot.g.nodeOf(i, f).isEmpty)
           }
         }
       }
@@ -225,9 +225,9 @@ class ALPsDomainSuite extends FunSpec with ALPsDomainSuiteParameters with Privat
       it("has all reachable identifiers mapped to a node") {
         forAll(someFibersAndVars) { (fiber, i) =>
           val top = dom.top(fiber)
-          assert(top.labelOf(i).nonEmpty)
+          assert(top.labels(i).nonEmpty)
           for (f <- om.fieldsOf(om.tsuper)) {
-            assert(top.labelOf(i, f).nonEmpty)
+            assert(top.g.nodeOf(i, f).nonEmpty)
           }
         }
       }
@@ -256,7 +256,7 @@ class ALPsDomainSuite extends FunSpec with ALPsDomainSuiteParameters with Privat
       it("is not comparable with g1") { assert(g2.tryCompareTo(g1).isEmpty) }
       it("is smaller than g3") { assert(g2 < g3) }
       describe("has a morphism from g3 which") {
-        val Some((-1, m)) = g2.tryMorphism(g3)
+        val Some((-1, m)) = g2.g.tryMorphism(g3.g)
         it should behave like ALPsMorphism(g3, g2, m)
       }
     }
@@ -274,22 +274,20 @@ class ALPsDomainSuite extends FunSpec with ALPsDomainSuiteParameters with Privat
     }
 
     describe("The nodeType method") {
-      val nodeType = PrivateMethod[Option[om.Type]]('nodeType)
       it("returns type t for nodes bounds to variables all of type t") {
-        assert((g4 invokePrivate nodeType(g4.labelOf(1).get)) === Some(om.tsuper))
+        assert((g4.g.nodeType(g4.labels(1).get)) === Some(om.tsuper))
       }
       it("returns the least type of all variables bound to the node") {
-        assert((g4 invokePrivate nodeType(g4.labelOf(0).get)) === Some(om.tsub))
+        assert((g4.g.nodeType(g4.labels(0).get)) === Some(om.tsub))
       }
       it("returns None for nodes not bound to variables") {
-        assert((g4 invokePrivate nodeType(g4.labelOf(0, 'a').get)) === None)
+        assert((g4.g.nodeType(g4.g.nodeOf(0, 'a').get)) === None)
       }
     }
 
     describe("The expandSpan method") {
-      val expandSpan = PrivateMethod[Map[om.Field, Node]]('expandSpan)
-      val span = g1.labelOf(0).get
-      val newspan = g1 invokePrivate expandSpan(span, om.tsub)
+      val span = g1.labels(0).get
+      val newspan = g1.g.expandSpan(span, om.tsub)
       it("adds c field when moving from tsuper to tsub") {
         assert(newspan isDefinedAt 'c')
       }

@@ -59,12 +59,14 @@ class PairSharing[OM <: ObjectModel, Node](val om: OM) extends LocationDomain[OM
         yield UP(m1new.get, m2new.get))
     }
 
-    def applyMorphism(m: Map[Node, Node]) = {
+    def applyMorphism(m: collection.Map[Node, Node]) = {
       Property(for (UP(n1, n2) <- ps; m1new = m.get(n1); if m1new.isDefined; m2new = m.get(n2); if m2new.isDefined)
         yield UP(m1new.get, m2new.get))
     }
 
     def union(that: Property) = new Property(ps ++ that.ps)
+    
+    def intersect(that: Property) = new Property(ps intersect that.ps)
 
     def addFreshNodes(nodes: Iterable[Node]) = {
       val newPairs = nodes map { n => UP(n, n) }

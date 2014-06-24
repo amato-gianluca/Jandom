@@ -150,7 +150,7 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
     it("preserve labels") {
       for (i <- 0 until g1.dimension) {
         assert((g1.labelOf(i) flatMap m) === g2.labelOf(i))
-        for (f <- om.fieldsOf(g1.typeOf(i)))
+        for (f <- om.fieldsOf(g1.types(i)))
           assert((g1.labelOf(i, f) flatMap m) === g2.labelOf(i, f))
       }
     }
