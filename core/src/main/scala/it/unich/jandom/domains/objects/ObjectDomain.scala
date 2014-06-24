@@ -25,23 +25,25 @@ import it.unich.jandom.domains.CartesianFiberedProperty
  * This trait represents the interface for a domain which handles objects and their relationship.
  * May be used, for example, for sharing analysis. This is only a draft, and will be probably improved
  * along the development of Jandom.
- * @tparam OM the particular type of object model related to the object domain
+ * @tparam OM the class of object models related to this domain
  * @author Gianluca Amato <gamato@unich.it>
- *
  */
 trait ObjectDomain[+OM <: ObjectModel] extends CartesianFiberedDomain {
-
+  /**
+   * The property associated to an ObjectDomain is an ObjectProperty.
+   */
   type Property <: ObjectProperty[Property]
 
   /**
-   * The object model of this domain
-   */
-  val om: OM
-
-  /**
-   * The type of the fiber components is `om.Type`.
+   * The type of the fiber components corresponds to the type of the object model. 
    */
   type FiberComponent = om.Type
+
+  /**
+   * The object model of this domain. An object model abstracts the details of the ways
+   * a programming languages deals with objects.
+   */
+  val om: OM
 
   /**
    * This trait is the interface for abstract elements in the object domain.
@@ -50,13 +52,13 @@ trait ObjectDomain[+OM <: ObjectModel] extends CartesianFiberedDomain {
     this: P =>
 
     /**
-     * Returns the type of an object reachable by following a sequence of fields. The 
+     * Returns the type of an object reachable by following a sequence of fields. The
      * returned type should be a super-type of all the object possibly reachable with
      * this sequence of fields. Returns `None` if the field sequence stops due to a
      * null pointer.
      */
-    def typeOf(v: Int, fs: Iterable[om.Field]): Option[om.Type]     
-      
+    def typeOf(v: Int, fs: Iterable[om.Field]): Option[om.Type]
+
     /**
      * Add a new variable. The new variable may be in whatever relationship with the
      * old ones.
@@ -101,12 +103,12 @@ trait ObjectDomain[+OM <: ObjectModel] extends CartesianFiberedDomain {
      * Returns true if the variable v might be null
      */
     def mustBeNull(v: Int): Boolean = mustBeNull(v, Iterable())
-    
+
     /**
      * Returns true if the variable v must be null
-     */    
+     */
     def mayBeNull(v: Int): Boolean = mayBeNull(v, Iterable())
-    
+
     /**
      * Returns true if the location obtained by v following fields in fieldseq is definitively
      * null. If some intermediate value is definitively null, it returns true.
@@ -123,7 +125,7 @@ trait ObjectDomain[+OM <: ObjectModel] extends CartesianFiberedDomain {
      * Returns true if two variables may share
      */
     def mayShare(v1: Int, v2: Int): Boolean = mayShare(v1, Iterable(), v2, Iterable())
-    
+
     /**
      * Returns true if two fields may share
      */
@@ -132,8 +134,8 @@ trait ObjectDomain[+OM <: ObjectModel] extends CartesianFiberedDomain {
     /**
      * Returns true if two variables must share
      */
-    def mustShare(v1: Int, v2: Int): Boolean =  mustShare(v1, Iterable(), v2, Iterable())
-    
+    def mustShare(v1: Int, v2: Int): Boolean = mustShare(v1, Iterable(), v2, Iterable())
+
     /**
      * Returns true if two fields must share
      */

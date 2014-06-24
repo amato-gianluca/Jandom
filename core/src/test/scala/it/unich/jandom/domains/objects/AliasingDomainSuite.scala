@@ -28,8 +28,8 @@ trait AliasingDomainSuiteParameters {
 
   val om = ObjectDomainSuite.TestObjectModel
   val dom = AliasingDomain(om)
-  val someTypes = Table[dom.FiberType]("type", om.tsuper, om.tsub, om.tother)
-  val someFibers = Table[Seq[dom.FiberType]]("fiber", Seq(om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper, om.tsuper))
+  val someTypes = Table[dom.FiberComponent]("type", om.tsuper, om.tsub, om.tother)
+  val someFibers = Table[Seq[dom.FiberComponent]]("fiber", Seq(om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper, om.tsuper))
 
   implicit def sizeToTypes(size: Int) = Seq.fill(size)(om.tsuper)
 

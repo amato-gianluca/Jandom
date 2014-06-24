@@ -28,7 +28,7 @@ trait ALPsDomainSuiteParameters {
 
   val om = ObjectDomainSuite.TestObjectModel
   val dom = ALPsDomain(om)
-  val someTypes = Table[dom.FiberType]("type", om.tsuper, om.tsub, om.tother)
+  val someTypes = Table[dom.FiberComponent]("type", om.tsuper, om.tsub, om.tother)
   val someFibers = Table[Seq[om.Type]]("fiber", Seq(om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper, om.tsuper))
 
   implicit def sizeToTypes(size: Int) = Seq.fill(size)(om.tsuper)
@@ -287,7 +287,7 @@ class ALPsDomainSuite extends FunSpec with ALPsDomainSuiteParameters with Privat
     }
 
     describe("The expandSpan method") {
-      val expandSpan = PrivateMethod[dom.Span]('expandSpan)
+      val expandSpan = PrivateMethod[Map[om.Field, Node]]('expandSpan)
       val span = g1.labelOf(0).get
       val newspan = g1 invokePrivate expandSpan(span, om.tsub)
       it("adds c field when moving from tsuper to tsub") {

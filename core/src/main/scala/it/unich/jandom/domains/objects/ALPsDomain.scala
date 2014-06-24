@@ -18,12 +18,12 @@
 
 package it.unich.jandom.domains.objects
 
-import scala.collection.breakOut
-import it.unich.jandom.utils.DisjointSets
 import scala.annotation.tailrec
+import it.unich.jandom.utils.DisjointSets
 
 /**
- * The domain for the ALPs domain.
+ * The implementation of the ALPs domain. This mixes aliasing, pair sharing and linearity. At
+ * the moment, linearity is not yet implemented.
  * @param om the object model to use for the domain
  * @author Gianluca Amato <gamato@unich.it>
  */
@@ -31,17 +31,32 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
   import ALPsDomain._
 
-  type Span = Map[om.Field, Node]
+  /**
+   * A Span is a set of edges departing from a node and labeled by field names.
+   */
+  private type Span = Map[om.Field, Node]
 
-  type EdgeSet = Map[Node, Span]
+  /**
+   * An EdgeSet is a map from nodes in a graph to its corresponding span
+   */
+  private type EdgeSet = Map[Node, Span]
 
-  val psdom = new PairSharing[om.type, Node](om)
+  /**
+   * The ALPs domain directly implements aliasing and depends on `plug-ins` for all other
+   * properties. At the moment, `psdom` is the plug-in for pair-sharing and cannot be changed.
+   */
+  private[ALPsDomain] val psdom = new PairSharing[om.type, Node](om)
 
-  implicit object nodeOrdering extends Ordering[Node] {
+  /**
+   * This node ordering is used to compare nodes.
+   * @todo hashCode may return the same value for different nodes, and I am not
+   * sure this is fine.
+   */
+  private implicit object nodeOrdering extends Ordering[Node] {
     def compare(x: Node, y: Node) = x.hashCode - y.hashCode
   }
 
-  def top(types: Seq[om.Type]) = {
+  def top(types: Fiber) = {
     val labels = for { t <- types } yield if (om.mayShare(t, t)) Some(Node()) else None
     val edges: EdgeSet = (for { (t, Some(n)) <- types zip labels } yield {
       val span: Span = (for { f <- om.fieldsOf(t); tf = om.typeOf(f); if om.mayShare(tf, tf) } yield f -> Node())(collection.breakOut)
@@ -51,7 +66,7 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     new Property(labels, edges.withDefaultValue(Map.empty), types, psdom.top(nodes))
   }
 
-  def bottom(types: Seq[om.Type]) = new Property(Seq.fill(types.size)(None), Map().withDefaultValue(Map.empty), types, psdom.bottom(Iterable()))
+  def bottom(types: Fiber) = new Property(Seq.fill(types.size)(None), Map().withDefaultValue(Map.empty), types, psdom.bottom(Iterable()))
 
   def apply(labels: Seq[Option[Node]], edges: EdgeSet, types: Seq[om.Type], ps: psdom.Property): Property =
     new Property(labels, edges.withDefaultValue(Map.empty), types, ps)
@@ -91,7 +106,7 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     if (!type1.isDefined) type2 else if (!type2.isDefined) type1 else om.glbApprox(Seq(type1.get, type2.get))
   }
 
-  case class Property(labels: Seq[Option[Node]], edges: EdgeSet, types: Seq[om.Type], ps: psdom.Property) extends ObjectProperty[Property] {
+  case class Property (labels: Seq[Option[Node]], edges: EdgeSet, types: Seq[om.Type], ps: psdom.Property) extends ObjectProperty[Property] {
 
     /**
      * Apply a morphism to a graph.
