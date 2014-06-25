@@ -91,9 +91,9 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
 
   describe("The glbapprox relation") {  
     it("passes some specific test for SootObjectModel") {
-      assert(om.glbApprox(Seq(interfaceList, interfaceOther)) === Some(scene.getObjectType()))
-      assert(om.glbApprox(Seq(interfaceList, interfaceOther, klassListA)) === Some(klassListA))
-      assert(om.glbApprox(Seq(interfaceList, klassA, interfaceOther, klassListA)) === None)
+      assert(om.glb(Seq(interfaceList, interfaceOther)) === Some(scene.getObjectType()))
+      assert(om.glb(Seq(interfaceList, interfaceOther, klassListA)) === Some(klassListA))
+      assert(om.glb(Seq(interfaceList, klassA, interfaceOther, klassListA)) === None)
     }
   }
 

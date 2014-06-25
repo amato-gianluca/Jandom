@@ -18,6 +18,8 @@
 
 package it.unich.jandom.domains.objects
 
+import scala.annotation.tailrec
+
 /**
  * An ObjectModel encapsulate all the informations on the object model of a language.
  * It also encapsulated differences on the low level libraries used to interpret
@@ -49,11 +51,9 @@ trait ObjectModel {
   def lteq(t1: Type, t2: Type): Boolean
   
   /**
-   * If there is a type `t` which is subtype of all types in `ts`, then it returns a
-   * type `t'` such that t' <= t. Otherwise, it returns `None`. If the language is endowed 
-   * with intersection types, glb should probably be it.
+   * Returns the glb of a sequence of types, or None if it does not exists
    */
-  def glbApprox(ts: Iterable[Type]): Option[Type]
+  def glb(ts: Iterable[Type]): Option[Type]  
   
   /**
    * This returns true iff two variables of type t1 and t2 may share.
@@ -74,6 +74,21 @@ trait ObjectModel {
    * It returns the type of the object pointed by field `f`.
    */
   def typeOf(f: Field): Type
+  
+  /**
+   * It determines whether the sequence of fields `fs`, starting from an object of
+   * type `t`, is type correct.
+   */
+  @tailrec
+  final def pathExists(t: Type, fs: Field*): Boolean = {
+    if (fs.isEmpty) 
+      true
+    else {
+      val f = fs.head
+      (fieldsOf(t) contains f) && pathExists(t, fs.tail: _*)
+    }
+      
+  }
 
   /**
    * Returns whether a type `t` is an array.
@@ -105,7 +120,7 @@ object ObjectModel {
     def fieldsOf(t: Type) = Set()
     def typeOf(f: Field) = {}
     def lteq(t1: Type, t2: Type) = true
-    def glbApprox(ts: Iterable[Type]) = Some(())
+    def glb(ts: Iterable[Type]) = Some(())
   }
 
   /**

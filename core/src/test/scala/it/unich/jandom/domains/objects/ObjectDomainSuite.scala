@@ -257,7 +257,7 @@ object ObjectDomainSuite {
     val tsub = "tsub"
 
     def lteq(t1: Type, t2: Type) = t1 == this.tsub || t2 == this.tsuper
-    def glbApprox(ts: Iterable[Type]) = if (ts.isEmpty)
+    def glb(ts: Iterable[Type]) = if (ts.isEmpty)
       None
     else if (ts exists { _ == tsub })
       Some(tsub)

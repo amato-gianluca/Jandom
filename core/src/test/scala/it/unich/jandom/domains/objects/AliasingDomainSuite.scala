@@ -132,7 +132,7 @@ trait AliasingDomainSuiteParameters {
     dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', Node()), (n1, 'a', Node()), (n1, 'b', Node())), 4)
   }
 
-  val someProperties = Table("property", g1, g2, g3, g4, g5, bot4, top4, g1a, g1b, g1c, g1d, g1e, g1f, g1bb)
+  val someProperties = Table("property", g1, g2, g3, g4, g5, /*g1 union g5*,*/ bot4, top4, g1a, g1b, g1c, g1d, g1e, g1f, g1bb)
 }
 
 /**
@@ -145,13 +145,13 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
   with PreciseObjectDomain with PreciseDefiniteWeakAliasing {
 
   import AliasingDomain._
-
+  
   def ALPsMorphism(g1: dom.Property, g2: dom.Property, m: Morphism) {
     it("preserve labels") {
       for (i <- 0 until g1.dimension) {
-        assert((g1.labelOf(i) flatMap m) === g2.labelOf(i))
+        assert((g1.labels(i) flatMap m) === g2.labels(i))
         for (f <- om.fieldsOf(g1.types(i)))
-          assert((g1.labelOf(i, f) flatMap m) === g2.labelOf(i, f))
+          assert((g1.nodeOf(i, f) flatMap m) === g2.nodeOf(i, f))
       }
     }
   }
@@ -171,13 +171,13 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
   }
 
   describe("The bottom ALPs graph") {
-
+    
     it("has all reachable identifiers labeled by null") {
       forAll(someFibersAndVars) { (fiber, i) =>
         val bot = dom.bottom(fiber)
-        assert(bot.labelOf(i).isEmpty)
+        assert(bot.labels(i).isEmpty)
         for (f <- om.fieldsOf(om.tsuper)) {
-          assert(bot.labelOf(i, f).isEmpty)
+          assert(bot.nodeOf(i, f).isEmpty)
         }
       }
     }
@@ -213,9 +213,9 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
     it("has all reachable identifiers mapped to a node") {
       forAll(someFibersAndVars) { (fiber, i) =>
         val top = dom.top(fiber)
-        assert(top.labelOf(i).nonEmpty)
+        assert(top.labels(i).nonEmpty)
         for (f <- om.fieldsOf(om.tsuper)) {
-          assert(top.labelOf(i, f).nonEmpty)
+          assert(top.nodeOf(i, f).nonEmpty)
         }
       }
     }
@@ -262,22 +262,20 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
   }
 
   describe("The nodeType method") {
-    val nodeType = PrivateMethod[Option[om.Type]]('nodeType)
     it("returns type t for nodes bounds to variables all of type t") {
-      assert((g4 invokePrivate nodeType(g4.labelOf(1).get)) === Some(om.tsuper))
+      assert((g4.nodeType(g4.labels(1).get)) === om.tsuper)
     }
     it("returns the least type of all variables bound to the node") {
-      assert((g4 invokePrivate nodeType(g4.labelOf(0).get)) === Some(om.tsub))
+      assert((g4.nodeType(g4.labels(0).get)) === om.tsub)
     }
-    it("returns None fot nodes not bound to variables") {
-      assert((g4 invokePrivate nodeType(g4.labelOf(0, 'a').get)) === None)
-    }
+    /*it("returns None for nodes not bound to variables") {
+      assert((g4.nodeType(g4.nodeOf(0, 'a').get)) === None)
+    }*/
   }
 
   describe("The expandSpan method") {
-    val expandSpan = PrivateMethod[dom.Span]('expandSpan)
-    val span = g1.labelOf(0).get
-    val newspan = g1 invokePrivate expandSpan(span, om.tsub)
+    val span = g1.labels(0).get
+    val newspan = g1.expandSpan(span, om.tsub)
     it("adds c field when moving from tsuper to tsub") {
       assert(newspan isDefinedAt 'c')
     }
@@ -298,12 +296,6 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
     }
     it("maps g1.assignVariable(2,3) to g1a") {
       assert(g1.assignVariable(2, 3) === g1a)
-    }
-  }
-
-  describe("The assignFieldToVariable method") {
-    it("maps g1.assignFieldToVariable(2, 2, 'b') to g1b") {
-      assert(g1.assignFieldToVariable(2, 2, 'b') === g1b)
     }
   }
 

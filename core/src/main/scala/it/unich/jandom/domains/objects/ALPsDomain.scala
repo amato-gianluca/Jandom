@@ -43,7 +43,7 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
    * The ALPs domain directly implements aliasing and depends on `plug-ins` for all other
    * properties. At the moment, `psdom` is the plug-in for pair-sharing and cannot be changed.
    */
-  private[ALPsDomain] val psdom = new PairSharing[om.type, Node](om)
+  private[ALPsDomain] val psdom = new PairSharing[om.type, Node](om)	
 
   def top(types: Fiber) = {
     val g = aldom.top(types)
@@ -102,7 +102,7 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
      * pair sharing information.
      */
     def this(labels: Seq[Option[Node]], edges: EdgeSet, types: Seq[om.Type], ps: psdom.Property) =
-      this(aldom.Property(labels, edges, types), ps)
+      this(new aldom.Property(labels, edges, types), ps)
 
     type Domain = ALPsDomain.this.type
 
@@ -168,7 +168,7 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
           val reachable = g.reachableNodesForbidden(n)
           if (reachable contains n) {
             val newNodeTypes = for ((Some(`n`), i) <- labels.zipWithIndex) yield types(i)
-            val newType = om.glbApprox(newNodeTypes).get
+            val newType = om.glb(newNodeTypes).get
             val (newSpan, detached) = g.reduceSpan(n, newType)
             val removeFromPs = detached filterNot { reachable contains _ }
             val newPs = ps.delChildren(n, removeFromPs.toSet)
@@ -198,7 +198,7 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     def connect(other: Property, common: Int): Property = {
       // we check whether it is possible to reach the non-common variable in this from the common
       // variables. Here sharing might help.
-      val escapeFromCommon = (labels zip types) exists { case (Some(n), t) => g.escape(n, t); case _ => false }
+      val escapeFromCommon = (labels zip types) exists { case (Some(n), t) => g.escape(n); case _ => false }
       if (!escapeFromCommon) {
         val nodes = g.reachableNodesFrom(labels.takeRight(common).flatten: _*)
         new Property(
@@ -212,7 +212,7 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         val newedges =
           for ((src, span) <- edges) yield src ->
             (if (reachableNodes contains src) {
-              val fs = g.fullSpan(g.nodeType(src).get)
+              val fs = aldom.fullSpan(g.nodeType(src))
               newnodes ++= fs.values
               fs
             } else

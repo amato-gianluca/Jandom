@@ -161,7 +161,7 @@ class PairSharingSuite extends FunSuite {
       def fieldsOf(t: Type) = Set()
       def typeOf(f: Field) = f
       def lteq(t1: Type, t2: Type) = t1 == t2      
-      def glbApprox(ts: Iterable[Type]) = if (ts.isEmpty)
+      def glb(ts: Iterable[Type]) = if (ts.isEmpty)
         None
       else         
         if (ts.tail forall { _ == ts.head }) Some(ts.head) else None     

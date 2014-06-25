@@ -25,7 +25,7 @@ package it.unich.jandom.domains.objects
  */
 trait ObjectDomainFactory {
   /**
-   * Returns an object domain given an object model.
+   * Returns an abstract domain given an object model.
    * @tparam OM is the particular subclass of ObjectModel we want to provide. It is
    * generally `om.type`.
    */

@@ -31,7 +31,7 @@ trait LocationDomain[OM <: ObjectModel, Node] {
   
   def top(node: Iterable[Node]): Property
   
-  def top(node: Iterable[(Node, Option[om.Type])], withType: Boolean): Property
+  def top(node: Iterable[(Node, om.Type)], withType: Boolean): Property
 
   trait LocationProperty[Property <: LocationProperty[Property]]  {
     def applyMorphism(m: Node => Option[Node]): Property

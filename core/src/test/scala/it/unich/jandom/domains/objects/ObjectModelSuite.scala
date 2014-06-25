@@ -49,14 +49,14 @@ trait ObjectModelSuite {
   describe("The glbapprox relation") {
     it("is reductive") {
       for (t <- someTypes ) {
-        val glb = om.glbApprox(Seq(t,t))
+        val glb = om.glb(Seq(t,t))
         assert(glb.isDefined)
         assert( om.lteq(t, glb.get) )
       } 
     }
     it("is bigger than the glb") {
       for (t1 <- someTypes; t2 <- someTypes; t3 <- someTypes; if om.lteq(t3,t1) && om.lteq(t3,t2)) {
-        val glb = om.glbApprox(Seq(t1,t2))
+        val glb = om.glb(Seq(t1,t2))
         assert(glb.isDefined)
         assert( om.lteq(t3, glb.get) )        
       } 

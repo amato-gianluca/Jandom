@@ -28,8 +28,8 @@ class PairSharing[OM <: ObjectModel, Node](val om: OM) extends LocationDomain[OM
     def compare(x: Node, y: Node) = x.hashCode - y.hashCode
   }
 
-  private def allPsPairs(nodetypes: Iterable[(Node, Option[om.Type])]) = {
-    for ((n1, t1) <- nodetypes; (n2, t2) <- nodetypes; if ! t1.isDefined || ! t2.isDefined || om.mayShare(t1.get, t2.get)) yield UP(n1, n2)
+  private def allPsPairs(nodetypes: Iterable[(Node, om.Type)]) = {
+    for ((n1, t1) <- nodetypes; (n2, t2) <- nodetypes; if om.mayShare(t1, t2)) yield UP(n1, n2)
   }
   
   def top(nodes: Iterable[Node]): Property = {
@@ -37,7 +37,7 @@ class PairSharing[OM <: ObjectModel, Node](val om: OM) extends LocationDomain[OM
     Property(ps)
   }
   
-  def top(nodetypes: Iterable[(Node, Option[om.Type])], withType: Boolean = true) = Property(allPsPairs(nodetypes).toSet)
+  def top(nodetypes: Iterable[(Node, om.Type)], withType: Boolean = true) = Property(allPsPairs(nodetypes).toSet)
 
   def bottom(nodes: Iterable[Node]): Property = Property( (for (n <- nodes) yield UP(n,n)).toSet )
   
