@@ -21,12 +21,14 @@ package it.unich.jandom.domains.objects
 import org.scalatest.FunSpec
 import org.scalatest.prop.Tables._
 import org.scalatest.PrivateMethodTester
+import it.unich.jandom.objectmodels.ObjectModel
+import it.unich.jandom.objectmodels.TestObjectModel
 
 trait ALPsDomainSuiteParameters {
   import scala.language.implicitConversions
   import AliasingDomain._
 
-  val om = ObjectDomainSuite.TestObjectModel
+  val om = TestObjectModel
   val dom = ALPsDomain(om)
   val someTypes = Table[dom.FiberComponent]("type", om.tsuper, om.tsub, om.tother)
   val someFibers = Table[Seq[om.Type]]("fiber", Seq(om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper, om.tsuper))
@@ -152,7 +154,7 @@ class ALPsDomainSuite extends FunSpec with ALPsDomainSuiteParameters with Privat
       it("preserve labels") {
         for (i <- 0 until g1.dimension) {
           assert((g1.labels(i) flatMap m) === g2.labels(i))
-          for (f <- om.fieldsOf(g1.types(i)))
+          for (f <- om.fields(g1.types(i)))
             assert((g1.g.nodeOf(i, f) flatMap m) === g2.g.nodeOf(i, f))
         }
       }
@@ -178,7 +180,7 @@ class ALPsDomainSuite extends FunSpec with ALPsDomainSuiteParameters with Privat
         forAll(someFibersAndVars) { (fiber, i) =>
           val bot = dom.bottom(fiber)
           assert(bot.labels(i).isEmpty)
-          for (f <- om.fieldsOf(om.tsuper)) {
+          for (f <- om.fields(om.tsuper)) {
             assert(bot.g.nodeOf(i, f).isEmpty)
           }
         }
@@ -187,9 +189,9 @@ class ALPsDomainSuite extends FunSpec with ALPsDomainSuiteParameters with Privat
         forAll(someFibersAndVars) { (fiber, i) =>
           val bot = dom.bottom(fiber)
           assert(bot.mustBeNull(i))
-          for (j <- om.fieldsOf(om.tsuper)) {
+          for (j <- om.fields(om.tsuper)) {
             assert(bot.mustBeNull(i), Seq(j))
-            for (k <- om.fieldsOf(om.typeOf(j))) assert(bot.mustBeNull(i), Seq(j, k))
+            for (k <- om.fields(om.typeOf(j))) assert(bot.mustBeNull(i), Seq(j, k))
           }
         }
       }
@@ -216,9 +218,9 @@ class ALPsDomainSuite extends FunSpec with ALPsDomainSuiteParameters with Privat
         forAll(someFibersAndVars) { (fiber, i) =>
           val top = dom.top(fiber)
           assert(!top.mustBeNull(i))
-          for (j <- om.fieldsOf(om.tsuper)) {
+          for (j <- om.fields(om.tsuper)) {
             assert(!top.mustBeNull(i), Seq(j))
-            for (k <- om.fieldsOf(om.typeOf(j))) assert(!top.mustBeNull(i), Seq(j, k))
+            for (k <- om.fields(om.typeOf(j))) assert(!top.mustBeNull(i), Seq(j, k))
           }
         }
       }
@@ -226,7 +228,7 @@ class ALPsDomainSuite extends FunSpec with ALPsDomainSuiteParameters with Privat
         forAll(someFibersAndVars) { (fiber, i) =>
           val top = dom.top(fiber)
           assert(top.labels(i).nonEmpty)
-          for (f <- om.fieldsOf(om.tsuper)) {
+          for (f <- om.fields(om.tsuper)) {
             assert(top.g.nodeOf(i, f).nonEmpty)
           }
         }

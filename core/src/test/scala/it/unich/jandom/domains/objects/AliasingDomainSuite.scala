@@ -22,11 +22,14 @@ import org.scalatest.FunSpec
 import org.scalatest.PrivateMethodTester
 import org.scalatest.prop.Tables._
 
+import it.unich.jandom.objectmodels.ObjectModel
+import it.unich.jandom.objectmodels.TestObjectModel
+
 trait AliasingDomainSuiteParameters {
   import scala.language.implicitConversions
   import AliasingDomain._
 
-  val om = ObjectDomainSuite.TestObjectModel
+  val om = TestObjectModel
   val dom = AliasingDomain(om)
   val someTypes = Table[dom.FiberComponent]("type", om.tsuper, om.tsub, om.tother)
   val someFibers = Table[Seq[dom.FiberComponent]]("fiber", Seq(om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper), Seq(om.tsuper, om.tsuper, om.tsuper, om.tsuper))
@@ -150,7 +153,7 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
     it("preserve labels") {
       for (i <- 0 until g1.dimension) {
         assert((g1.labels(i) flatMap m) === g2.labels(i))
-        for (f <- om.fieldsOf(g1.types(i)))
+        for (f <- om.fields(g1.types(i)))
           assert((g1.nodeOf(i, f) flatMap m) === g2.nodeOf(i, f))
       }
     }
@@ -176,7 +179,7 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
       forAll(someFibersAndVars) { (fiber, i) =>
         val bot = dom.bottom(fiber)
         assert(bot.labels(i).isEmpty)
-        for (f <- om.fieldsOf(om.tsuper)) {
+        for (f <- om.fields(om.tsuper)) {
           assert(bot.nodeOf(i, f).isEmpty)
         }
       }
@@ -185,9 +188,9 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
       forAll(someFibersAndVars) { (fiber, i) =>
         val bot = dom.bottom(fiber)
         assert(bot.mustBeNull(i))
-        for (j <- om.fieldsOf(om.tsuper)) {
+        for (j <- om.fields(om.tsuper)) {
           assert(bot.mustBeNull(i), Seq(j))
-          for (k <- om.fieldsOf(om.typeOf(j))) assert(bot.mustBeNull(i), Seq(j, k))
+          for (k <- om.fields(om.typeOf(j))) assert(bot.mustBeNull(i), Seq(j, k))
         }
       }
     }
@@ -214,7 +217,7 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
       forAll(someFibersAndVars) { (fiber, i) =>
         val top = dom.top(fiber)
         assert(top.labels(i).nonEmpty)
-        for (f <- om.fieldsOf(om.tsuper)) {
+        for (f <- om.fields(om.tsuper)) {
           assert(top.nodeOf(i, f).nonEmpty)
         }
       }

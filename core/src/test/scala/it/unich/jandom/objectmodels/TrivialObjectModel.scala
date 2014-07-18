@@ -16,20 +16,25 @@
  * along with JANDOM.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package it.unich.jandom.domains.objects
-
-import it.unich.jandom.objectmodels.ObjectModel
+package it.unich.jandom.objectmodels
 
 /**
- * A factory for objects domain, i.e. domains which takes an object model
- * as an input.
+ * This is a trivial object model with a single non-primitive type, no fields and no arrays.
  * @author Gianluca Amato <gamato@unich.it>
  */
-trait ObjectDomainFactory {
-  /**
-   * Returns an abstract domain given an object model.
-   * @tparam OM is the particular subclass of ObjectModel we want to provide. It is
-   * generally `om.type`.
-   */
-  def apply[OM <: ObjectModel](om: OM): ObjectDomain[OM]
+object TrivialObjectModel extends TreeObjectModel with NoArrays {
+  self: ObjectModel =>
+  type Type = Unit
+  type Field = Unit  
+  def declaredFields(t: Type) = Set()
+  def typeOf(f: Field) = {}
+  def lteq(t1: Type, t2: Type) = true
+  def parents(t: Type) = Set()
+  def children(t: Type) = Set()
+  def isPrimitive(t: Type) = false
+  def isConcrete(t: Type) = true
+  override def glbApprox(t1: Type, t2: Type) = Some(())
+  override def glbApprox(ts: Iterable[Type]) = if (ts.isEmpty) None else Some(())
+  override def mayShare(t1: Type, t2: Type) = true
+  override def mayBeAliases(t1: Type, t2: Type) = true
 }

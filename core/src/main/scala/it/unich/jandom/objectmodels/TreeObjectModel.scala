@@ -16,20 +16,26 @@
  * along with JANDOM.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package it.unich.jandom.domains.objects
-
-import it.unich.jandom.objectmodels.ObjectModel
+package it.unich.jandom.objectmodels
 
 /**
- * A factory for objects domain, i.e. domains which takes an object model
- * as an input.
+ * A TreeObjectModel is an object model where the subtype relationships
+ * forms a forest instead of a graph.
  * @author Gianluca Amato <gamato@unich.it>
  */
-trait ObjectDomainFactory {
+
+trait TreeObjectModel extends ObjectModel { 
+  
   /**
-   * Returns an abstract domain given an object model.
-   * @tparam OM is the particular subclass of ObjectModel we want to provide. It is
-   * generally `om.type`.
+   * It determines the glb's of two types. It is only present at this point of the hierarchy because
+   * it is easy to compute it from the ordering relation for tree hierarchies, not as much for
+   * general hierarchies.
    */
-  def apply[OM <: ObjectModel](om: OM): ObjectDomain[OM]
+  def glb(t1: Type, t2: Type) = {
+    if (lteq(t1, t2))
+      Option(t1)
+    else if (lteq(t2, t1))
+      Option(t2)
+    else None
+  }  
 }

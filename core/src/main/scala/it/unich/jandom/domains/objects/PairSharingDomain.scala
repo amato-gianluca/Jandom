@@ -19,6 +19,7 @@
 package it.unich.jandom.domains.objects
 
 import scala.collection.immutable.Range
+import it.unich.jandom.objectmodels.ObjectModel
 
 /**
  * This is the implementation of the pair sharing domain in [Spoto and Secci].

@@ -18,6 +18,8 @@
 
 package it.unich.jandom.domains.objects
 
+import it.unich.jandom.objectmodels.ObjectModel
+
 /**
  * A location domain is an abstraction of locations is a program.
  * @author Gianluca Amato <gamato@unich.it>

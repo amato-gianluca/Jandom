@@ -16,12 +16,28 @@ interface ListInterface4 extends ListInterface3 { }
 
 interface OtherInterface { }
 
+interface InstantiableInterface { }
+
+abstract class Abs implements ListInterface2 {
+	int length;
+}
+
+abstract class Abs1 implements InstantiableInterface { }
+
+class NoAbs1 extends Abs1 {
+	int x;	
+}
+
+abstract class Abs2 extends NoAbs1 { }
+
 class ListA implements ListInterface {
 	ListA next;
 	A v;
 }
 
-class ListA2 extends ListA { }
+class ListA2 extends ListA {
+	A w;
+}
 
 class ListA3 extends ListA implements ListInterface4, OtherInterface {
 	A v2;	

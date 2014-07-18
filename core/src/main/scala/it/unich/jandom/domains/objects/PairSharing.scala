@@ -18,6 +18,8 @@
 
 package it.unich.jandom.domains.objects
 
+import it.unich.jandom.objectmodels.ObjectModel
+
 /**
  * @author Gianluca Amato <gamato@unich.it>
  */

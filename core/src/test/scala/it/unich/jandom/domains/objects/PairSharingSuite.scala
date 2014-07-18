@@ -20,6 +20,9 @@ package it.unich.jandom.domains.objects
 
 
 import org.scalatest.FunSuite
+import it.unich.jandom.objectmodels.ObjectModel
+import it.unich.jandom.objectmodels.NoArrays
+import it.unich.jandom.objectmodels.TrivialObjectModel
 
 /**
  * A test suite for PairSharing domain.
@@ -29,7 +32,7 @@ import org.scalatest.FunSuite
 class PairSharingSuite extends FunSuite {
   import scala.language.implicitConversions
 
-  val dom = PairSharingDomain(ObjectModel.Trivial)
+  val dom = PairSharingDomain(TrivialObjectModel)
 
   implicit def sizeToTypes(size: Int) = Seq.fill(size)(())
 
@@ -153,18 +156,18 @@ class PairSharingSuite extends FunSuite {
   }
 
   test("A non trivial object model") {
-    object NonTrivialModel extends ObjectModel with ObjectModel.NoArrays {
+    object NonTrivialModel extends ObjectModel with NoArrays {
       type Type = Int
       type Field = Int
-      def mayShare(src: Type, tgt: Type) = UP(src,tgt) != UP(0,1)
-      def mayBeAliases(t1: Type, t2: Type) = t1 == t2
-      def fieldsOf(t: Type) = Set()
+      def isPrimitive(t: Type) = false
+      def isConcrete(t: Type) = true
+      def declaredFields(t: Type) = Set()
       def typeOf(f: Field) = f
-      def lteq(t1: Type, t2: Type) = t1 == t2      
-      def glb(ts: Iterable[Type]) = if (ts.isEmpty)
-        None
-      else         
-        if (ts.tail forall { _ == ts.head }) Some(ts.head) else None     
+      def parents(t: Type) = Set()
+      def children(t: Type) = Set()
+      def lteq(t1: Type, t2: Type) = t1 == t2
+      override def mayShare(src: Type, tgt: Type) = UP(src,tgt) != UP(0,1)
+      override def mayBeAliases(t1: Type, t2: Type) = t1 == t2
     }
 
     val dom = new PairSharingDomain(NonTrivialModel)

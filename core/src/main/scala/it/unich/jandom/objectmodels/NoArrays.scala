@@ -16,20 +16,15 @@
  * along with JANDOM.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package it.unich.jandom.domains.objects
-
-import it.unich.jandom.objectmodels.ObjectModel
+package it.unich.jandom.objectmodels
 
 /**
- * A factory for objects domain, i.e. domains which takes an object model
- * as an input.
+ * This is a trait for object models without arrays.
  * @author Gianluca Amato <gamato@unich.it>
  */
-trait ObjectDomainFactory {
-  /**
-   * Returns an abstract domain given an object model.
-   * @tparam OM is the particular subclass of ObjectModel we want to provide. It is
-   * generally `om.type`.
-   */
-  def apply[OM <: ObjectModel](om: OM): ObjectDomain[OM]
+  
+trait NoArrays extends ObjectModel {  
+  def isArray(t: Type) = false
+  def getElementType(t: Type) = None
 }
+

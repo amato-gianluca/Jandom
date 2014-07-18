@@ -16,20 +16,17 @@
  * along with JANDOM.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package it.unich.jandom.domains.objects
+package it.unich.jandom.objectmodels
 
-import it.unich.jandom.objectmodels.ObjectModel
+import org.scalatest.FunSpec
+import org.scalacheck._
+import Arbitrary._
 
 /**
- * A factory for objects domain, i.e. domains which takes an object model
- * as an input.
+ * A test for the TestObjectModel.
  * @author Gianluca Amato <gamato@unich.it>
  */
-trait ObjectDomainFactory {
-  /**
-   * Returns an abstract domain given an object model.
-   * @tparam OM is the particular subclass of ObjectModel we want to provide. It is
-   * generally `om.type`.
-   */
-  def apply[OM <: ObjectModel](om: OM): ObjectDomain[OM]
+class TestObjectModelSuite extends FunSpec with ObjectModelSuite {
+  val om = TestObjectModel
+  val someTypes = Seq(om.tsuper, om.tmiddle, om.tsub, om.tother, om.tprim)  
 }

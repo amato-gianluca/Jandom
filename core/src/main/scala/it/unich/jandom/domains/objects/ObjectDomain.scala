@@ -20,6 +20,7 @@ package it.unich.jandom.domains.objects
 
 import it.unich.jandom.domains.CartesianFiberedDomain
 import it.unich.jandom.domains.CartesianFiberedProperty
+import it.unich.jandom.objectmodels.ObjectModel
 
 /**
  * This trait represents the interface for a domain which handles objects and their relationship.

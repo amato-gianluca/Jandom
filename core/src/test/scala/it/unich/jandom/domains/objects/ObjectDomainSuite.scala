@@ -23,6 +23,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.prop.TableFor1
 
 import it.unich.jandom.domains.CartesianFiberedDomainSuite
+import it.unich.jandom.objectmodels.ObjectModel
 
 /**
  * This is a common trait for test suites of object domains. It contains all the standard tests
@@ -39,10 +40,10 @@ trait ObjectDomainSuite extends CartesianFiberedDomainSuite with TableDrivenProp
     (for (p <- someProperties; dst <- 0 until p.dimension; src <- 0 until p.dimension; if om.lteq(p.fiber(src), p.fiber(dst))) yield (p, dst, src)): _*)
 
   val someAssignFieldToVar = Table((someProperties.heading, "dst", "src", "f"),
-    (for (p <- someProperties; dst <- 0 until p.dimension; src <- 0 until p.dimension; f <- om.fieldsOf(p.fiber(src)); if om.lteq(om.typeOf(f), p.fiber(dst))) yield (p, dst, src, f)): _*)
+    (for (p <- someProperties; dst <- 0 until p.dimension; src <- 0 until p.dimension; f <- om.fields(p.fiber(src)); if om.lteq(om.typeOf(f), p.fiber(dst))) yield (p, dst, src, f)): _*)
 
   val someAssignVarToField = Table((someProperties.heading, "dst", "f", "src"),
-    (for (p <- someProperties; dst <- 0 until p.dimension; f <- om.fieldsOf(p.fiber(dst)); src <- 0 until p.dimension; if om.lteq(p.fiber(src), om.typeOf(f))) yield (p, dst, f, src)): _*)
+    (for (p <- someProperties; dst <- 0 until p.dimension; f <- om.fields(p.fiber(dst)); src <- 0 until p.dimension; if om.lteq(p.fiber(src), om.typeOf(f))) yield (p, dst, f, src)): _*)
 
   val someCast = Table((someProperties.heading, "v", someTypes.heading),
     (for (p <- someProperties; v <- 0 until p.dimension; t <- someTypes; if om.lteq(t, p.fiber(v))) yield (p, v, t)): _*)
@@ -53,9 +54,9 @@ trait ObjectDomainSuite extends CartesianFiberedDomainSuite with TableDrivenProp
         val top = dom.top(fiber)
         assert(top.mayBeNull(i))
         assert(!top.mustBeNull(i))
-        for (j <- om.fieldsOf(fiber(i))) {
+        for (j <- om.fields(fiber(i))) {
           assert(!top.mustBeNull(i), Seq(j))
-          for (k <- om.fieldsOf(om.typeOf(j))) assert(!top.mustBeNull(i), Seq(j, k))
+          for (k <- om.fields(om.typeOf(j))) assert(!top.mustBeNull(i), Seq(j, k))
         }
       }
     }
@@ -242,38 +243,3 @@ trait ObjectDomainSuite extends CartesianFiberedDomainSuite with TableDrivenProp
   }
 }
 
-object ObjectDomainSuite {
-
-  /**
-   * This is an object model used in several tests.
-   * @author Gianluca Amato <gamato@unich.it>
-   */
-  object TestObjectModel extends ObjectModel with ObjectModel.NoArrays {
-    type Type = AnyRef
-    type Field = Char
-
-    val tother = "tother"
-    val tsuper = "tsuper"
-    val tsub = "tsub"
-
-    def lteq(t1: Type, t2: Type) = t1 == this.tsub || t2 == this.tsuper
-    def glb(ts: Iterable[Type]) = if (ts.isEmpty)
-      None
-    else if (ts exists { _ == tsub })
-      Some(tsub)
-    else
-      Some(tsuper)
-    def mayShare(t1: Type, t2: Type) = true
-    def mayBeAliases(t1: Type, t2: Type) = true
-    def fieldsOf(t: Type) = t match {
-      case `tsuper` => Set('a', 'b')
-      case `tsub` => Set('a', 'b', 'c')
-      case `tother` => Set()
-    }
-    def typeOf(f: Field) = f match {
-      case 'a' => tsuper
-      case 'b' => tsuper
-      case 'c' => tsub
-    }
-  }
-}

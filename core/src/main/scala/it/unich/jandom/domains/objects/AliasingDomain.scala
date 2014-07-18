@@ -21,6 +21,7 @@ package it.unich.jandom.domains.objects
 import it.unich.jandom.utils.DisjointSets
 import scala.annotation._
 import scala.annotation.elidable._
+import it.unich.jandom.objectmodels.ObjectModel
 
 /**
  * The domain for definite weak aliasing. Two identifiers are weak aliased if either they are
@@ -49,7 +50,7 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
    * Returns a full span for a node of type `t`.
    */
   private[objects] def fullSpan(t: om.Type): Span = {
-    (for { f <- om.fieldsOf(t); tf = om.typeOf(f); if om.mayShare(tf, tf) } yield f -> Node()) (collection.breakOut)
+    (for { f <- om.fields(t); tf = om.typeOf(f); if om.mayShare(tf, tf) } yield f -> Node()) (collection.breakOut)
   }
 
   def top(types: Fiber) = {
@@ -105,7 +106,7 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       for (Some(n) <- labels) { assume(edges.isDefinedAt(n), s"First level node ${n} has no corresponding span") }
       for (n <- edges.keys) { assume(labels contains Some(n), s"A span exists for node ${n} which is not first level in ${this}") }
       for (n <- nodes) { assume(completeNodeType(n).isDefined, s"Node ${n} has no defined type in ${this}") }
-      for (Some(n) <- labels.toSet; t = nodeType(n); (f, tgt) <- edges(n); fields = om.fieldsOf(t) ) { 
+      for (Some(n) <- labels.toSet; t = nodeType(n); (f, tgt) <- edges(n); fields = om.fields(t) ) { 
         assume (fields contains f, s"node ${n} contains an invalid field ${f} in ${this}")
       }  
     }
@@ -173,7 +174,7 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       (for {
         (on, nt) <- labels zip types
         n <- on
-        if om.fieldsOf(nt) contains field
+        if om.fields(nt) contains field
       } yield n)(collection.breakOut)      
     }
 
@@ -216,7 +217,7 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
      */
     private[objects] def nodeType(n: Node): om.Type = {
       assume(isFirstLevel(n), s"nodeType called with non 1^ level node n${n}")
-      om.glb(for ((Some(`n`), t) <- labels zip types) yield t).get
+      om.glbApprox(for ((Some(`n`), t) <- labels zip types) yield t).get
     }
 
     /**
@@ -227,7 +228,7 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     private[objects] def completeNodeType(n: Node): Option[om.Type] = {
       val firstLevels = for ((Some(`n`), t) <- labels zip types) yield t
       val secondLevels = for ((_, span) <- edges; (f, `n`) <- span) yield om.typeOf(f)
-      om.glb(firstLevels ++ secondLevels)
+      om.glbApprox(firstLevels ++ secondLevels)
     }
 
     /**
@@ -239,7 +240,7 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       var span = edges(n)
       val nodet = nodeType(n)
       if (om.lteq(t, nodet))
-        for (f <- om.fieldsOf(t) -- om.fieldsOf(nodet); if !(span isDefinedAt f)) span += f -> Node()
+        for (f <- om.fields(t) -- om.fields(nodet); if !(span isDefinedAt f)) span += f -> Node()
       span
     }
 
@@ -249,7 +250,7 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
      */
     private[objects] def reduceSpan(n: Node, t: om.Type): (Span, Iterable[Node]) = {
       assume ( isFirstLevel(n) &&  om.lteq(nodeType(n), t) )
-      val removedFields = om.fieldsOf(nodeType(n)) -- om.fieldsOf(t)
+      val removedFields = om.fields(nodeType(n)) -- om.fields(t)
       val removedNodes = for { (f, dst) <- edges(n); if removedFields contains f } yield dst
       (edges(n) -- removedFields, removedNodes)
     }
@@ -571,7 +572,7 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
      */
     private[objects] def addFreshVariableWithSpan(t: om.Type): (Property, Node, Span) = {
       val n = Node()
-      val span: Span = om.fieldsOf(t).map { _ -> Node() }(collection.breakOut)
+      val span: Span = om.fields(t).map { _ -> Node() }(collection.breakOut)
       val newgraph = new Property(labels :+ Some(n), edges updated (n, span), types :+ t)
       (newgraph, n, span)
     }

@@ -59,7 +59,7 @@ import it.unich.jandom.targets.jvmasm.UnsupportedASMInsnException
 import it.unich.jandom.parsers.RandomParser
 import java.io.IOException
 import it.unich.jandom.targets.slil.SLILTarget
-import it.unich.jandom.domains.objects.ObjectModel
+import it.unich.jandom.objectmodels.ObjectModel
 import it.unich.jandom.targets.jvmsoot.SootObjectModel
 import it.unich.jandom.domains.objects.ObjectDomainFactory
 

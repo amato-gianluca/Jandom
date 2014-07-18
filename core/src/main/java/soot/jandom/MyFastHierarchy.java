@@ -1,6 +1,6 @@
 /**
  * Copyright 2014 Gianluca Amato <gamato@unich.it>
- *
+ * 
  * This file is part of JANDOM: JVM-based Analyzer for Numerical DOMains
  * JANDOM is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,20 +16,22 @@
  * along with JANDOM.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package it.unich.jandom.domains.objects
+package soot.jandom;
 
-import it.unich.jandom.objectmodels.ObjectModel
+import java.util.Set;
+
+import soot.*;
 
 /**
- * A factory for objects domain, i.e. domains which takes an object model
- * as an input.
- * @author Gianluca Amato <gamato@unich.it>
+ * Class FastHierarchy in Soot do not expose interfaceToSubinterfaces. This is just
+ * an extension which exposes this internal map.
  */
-trait ObjectDomainFactory {
-  /**
-   * Returns an abstract domain given an object model.
-   * @tparam OM is the particular subclass of ObjectModel we want to provide. It is
-   * generally `om.type`.
-   */
-  def apply[OM <: ObjectModel](om: OM): ObjectDomain[OM]
+public class MyFastHierarchy extends FastHierarchy {
+
+	/**
+	 * For an interface parent (MUST be an interface), returns set of direct subinterfaces. 
+	 */
+    public Set<SootClass> getSubinterfaces(SootClass parent) {
+      return interfaceToSubinterfaces.get(parent);
+    }
 }

@@ -18,208 +18,53 @@
 
 package it.unich.jandom.targets.jvmsoot
 
-import it.unich.jandom.domains.objects.ObjectModel
+import it.unich.jandom.objectmodels.ObjectModel
 import scala.collection.mutable
 import soot.util.Chain
 import soot.util.HashChain
 import soot.{ Unit => SootUnit, _ }
 import scala.collection.mutable.Queue
+import soot.jandom.MyFastHierarchy
+import org.hamcrest.core.IsInstanceOf
 
 /**
  * An object model for JVM using the Soot library.
  * @author Gianluca Amato <gamato@unich.it>
  */
 class SootObjectModel(scene: soot.Scene) extends ObjectModel {
+
   import scala.collection.JavaConversions._
 
   type Type = soot.Type
 
   type Field = soot.SootField
 
-  val fh = scene.getOrMakeFastHierarchy()
-
-  var reachable = mutable.HashMap[Type, Set[Type]]()
-  var sharing = mutable.HashMap[(Type, Type), Boolean]()
-
   /**
-   * Copy into result all the fields that an object of class/interface `ci` is
-   * guaranteed to have.
+   * Returns a MyFastHierarchy, which is a SootFastHirearchy modified to expose direct subinterface
+   * relationship.
    */
-  private def addNeededFields(fields: mutable.Set[Field], ci: SootClass): Unit = {
-    fields addAll ci.getFields()
-    var current = ci
-    while (current.hasSuperclass()) {
-      current = current.getSuperclass()
-      fields ++= current.getFields()
-    }
+  val fh = if (scene.hasFastHierarchy() && scene.getFastHierarchy().isInstanceOf[MyFastHierarchy])
+    scene.getFastHierarchy().asInstanceOf[MyFastHierarchy]
+  else {
+    val newfh = new MyFastHierarchy
+    scene.setFastHierarchy(newfh)
+    newfh
   }
 
-  /**
-   * Returns all the fields that an object of class/interface `ci` is
-   * guaranteed to have.
-   */
-  private def getNeededFields(ci: SootClass): Set[Field] = {
-    val fields = new mutable.HashSet[Field]()
-    addNeededFields(fields, ci)
-    fields.toSet
-  }
-
-  /**
-   * Returns all the fields that a type is guaranteed to have.
-   */
-  def getNeededFields(t: Type): Set[Field] = t match {
-    case t: RefType => getNeededFields(t.getSootClass())
+  def declaredFields(t: Type) = t match {
+    case t: RefType => t.getSootClass().getFields().toSet
     case _: PrimType => Set()
     case _: ArrayType => Set()
   }
-
-  /**
-   * Returns all the fields that an object of class/interface `klass` may
-   * possibly have.
-   */
-  private def getPossibleFields(ci: SootClass): Set[Field] = {
-    val fields = new mutable.HashSet[Field]()
-    addNeededFields(fields, ci)
-    if (ci.isInterface) {
-      val implementers = fh.getAllImplementersOfInterface(ci)
-      for (c <- implementers) addNeededFields(fields, c)
-    } else {
-      val queue = Queue[SootClass]()
-      queue.enqueue(fh.getSubclassesOf(ci).toSeq: _*)
-      while (!queue.isEmpty) {
-        val c = queue.dequeue
-        fields ++= c.getFields
-        queue.enqueue(fh.getSubclassesOf(c).toSeq: _*)
-      }
-    }
-    fields.toSet
-  }
-
-  /**
-   * Returns all the fields that a type may possibly have.
-   */
-  def getPossibleFields(t: Type): Set[Field] = t match {
-    case t: RefType => getPossibleFields(t.getSootClass())
-    case _: PrimType => Set()
-    case _: ArrayType => Set()
-  }
-
-  /**
-   * Determines whether a class or interface mat be instantiated, i.e. it has a concrete
-   * subclass / implementer. This should be refined by removing those classes whose
-   * constructor depends on non-instantiatable classes.
-   */
-  private def classMayBeInstantiated(ci: SootClass): Boolean = {
-    if (ci.isConcrete)
-      true
-    else if (ci.isInterface() && (fh.getAllImplementersOfInterface(ci) exists { _.isConcrete }))
-      true
-    else {
-      var c = ci
-      val queue = Queue[SootClass]()
-      queue.enqueue(fh.getSubclassesOf(ci).toSeq: _*)
-      while (!queue.isEmpty || c.isConcrete) {
-        val c = queue.dequeue
-        queue.enqueue(fh.getSubclassesOf(c).toSeq: _*)
-      }
-      c.isConcrete()
-    }
-  }
-
-  /**
-   * Determines whether an object of type t (or one of its subtypes) may be
-   * allocated on the heap.
-   */
-  def typeMayBeInstantiated(t: Type): Boolean = t match {
-    case t: RefType => classMayBeInstantiated(t.getSootClass())
-    case _: PrimType => false
-    case t: ArrayType => true
-  }
-
-  /**
-   * Determines an upper crown of the types reachable from a variable of declared type `t`.
-   * It uses memoization to speed up subsequent calls. It only returns an upper crown of
-   * all the reachable classes.
-   */
-  private def reachablesFrom(t: Type): Set[Type] = reachable.get(t) match {
-    case Some(types) =>
-      types
-    case None =>
-      reachable(t) = Set()
-      val result: Set[Type] = t match {
-        case t: RefType =>
-          val klass = t.getSootClass()
-          val result: Set[Type] = for {
-            field <- getPossibleFields(klass)
-            reachableTypes <- reachablesFrom(field.getType)
-          } yield reachableTypes
-          if (classMayBeInstantiated(klass))
-            result + t
-          else
-            result
-        case t: PrimType =>
-          Set()
-        case t: ArrayType =>
-          reachablesFrom(t.getElementType()) + t
-      }
-      reachable(t) = result
-      result
-  }
-
-  /**
-   * Determines whether the type `tgt` is reachable from `src`.
-   */
-  def reachableFrom(src: Type, tgt: Type) =
-    reachablesFrom(src) exists { fh.canStoreType(tgt, _) }
-
-  def mayShare(t1: Type, t2: Type) = {
-    val (tmin, tmax) = if (t1.getNumber() < t2.getNumber()) (t1, t2) else (t2, t1)
-    sharing.get((t1, t2)) match {
-      case Some(result) => result
-      case None =>
-        // TODO: it is possible to make this faster.
-        val result = reachablesFrom(t1) exists { reachableFrom(t2, _) }
-        sharing((tmin, tmax)) = result
-        result
-    }
-  }
-  
-  def mayBeAliases(t1: Type, t2: Type) = glb(Seq(t1,t2)).isDefined
-    
-  def fieldsOf(t: Type) = getNeededFields(t)
-
-  def glb(ts: Iterable[Type]) =
-    if (ts.isEmpty)
-      None
-    else {
-      var current: Option[Type] =
-        if (ts.head.isInstanceOf[RefType] && ts.head.asInstanceOf[RefType].getSootClass().isInterface())
-          Some(scene.getObjectType())
-        else
-          Some(ts.head)
-      var it = ts.tail.iterator
-      while (current != None && it.hasNext) {
-        val t = it.next()
-        if (t.isInstanceOf[RefType] && t.asInstanceOf[RefType].getSootClass().isInterface()) {
-          if (!current.get.isInstanceOf[RefType])
-            current = None
-        } else if (lteq(t, current.get))
-          current = Some(t)
-        else if (! lteq(current.get, t))
-          current = None
-      }
-      current
-    }
 
   def typeOf(f: Field) = f.getType()
 
-  def isArray(t: Type) = t.isInstanceOf[ArrayType]
-
   def isPrimitive(t: Type) = t.isInstanceOf[PrimType]
 
-  def getElementType(t: Type) = t match {
-    case t: ArrayType => Some(t.getElementType())
-    case _ => None
+  def isConcrete(t: Type) = t match {
+    case t: RefType => t.getSootClass().isConcrete()
+    case _: PrimType => true
+    case _: ArrayType => true
   }
 
   /**
@@ -229,4 +74,63 @@ class SootObjectModel(scene: soot.Scene) extends ObjectModel {
    */
   def lteq(t1: Type, t2: Type) = fh.canStoreType(t1, t2)
 
+  def parents(t: Type) = t match {
+    case t: RefType =>
+      val k = t.getSootClass()
+      val ifs: Set[Type] = (for {
+        i <- k.getInterfaces()
+      } yield i.getType())(collection.breakOut)
+      if (k.hasSuperclass())
+        ifs + k.getSuperclass().getType()
+      else
+        ifs
+    case _: PrimType => Set()
+    case t: ArrayType => parents(t.baseType) map { (ArrayType.v(_, t.numDimensions)) }
+  }
+
+  def children(t: Type) = t match {
+    case t: RefType =>
+      val k = t.getSootClass()
+      if (k.isInterface()) {
+        (fh.getAllImplementersOfInterface(k) map { _.getType() }).toSet ++
+          (fh.getSubinterfaces(k) map { _.getType() }).toSet
+      } else {
+        (fh.getSubclassesOf(k) map { _.getType() }).toSet
+      }
+    case _: PrimType => Set()
+    case t: ArrayType => children(t.baseType) map { (ArrayType.v(_, t.numDimensions)) }
+  }
+
+  def isArray(t: Type) = t.isInstanceOf[ArrayType]
+
+  def getElementType(t: Type) = t match {
+    case t: ArrayType => Some(t.baseType)
+    case _ => None
+  }
+
+  /**
+   * Returns whether a type is an interface.
+   */
+  def isInterface(t: Type) =
+    t.isInstanceOf[RefType] && t.asInstanceOf[RefType].getSootClass().isInterface()
+
+  /**
+   * This is a fast approximation of glbApprox which do not consider concretizability
+   * of a type and makes all interfaces equivalent to the Object type. It should be always
+   * a super-type of glbApprox. Moreover, if it is undefined, glbApprox should be undefined too.
+   */
+  def glbApproxFast(t1: Type, t2: Type): Option[Type] = {
+    val tt1 = if (isInterface(t1))
+      scene.getObjectType()
+    else t1
+    val tt2 = if (isInterface(t2))
+      scene.getObjectType()
+    else t2
+    if (lteq(tt1, tt2))
+      Some(tt1)
+    else if (lteq(tt2, tt1))
+      Some(t2)
+    else
+      None
+  }
 }
