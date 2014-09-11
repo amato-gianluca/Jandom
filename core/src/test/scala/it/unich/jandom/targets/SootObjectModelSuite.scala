@@ -21,8 +21,8 @@ package it.unich.jandom.targets
 import org.scalatest.FunSpec
 import org.scalatest.PrivateMethodTester
 
-import it.unich.jandom.domains.ObjectModelSuite
 import it.unich.jandom.targets.jvmsoot.SootObjectModel
+import it.unich.jandom.domains.objects.ObjectModelSuite
 
 import soot._
 

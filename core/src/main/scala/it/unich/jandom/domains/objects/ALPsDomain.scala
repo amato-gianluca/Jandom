@@ -24,29 +24,51 @@ import it.unich.jandom.utils.DisjointSets
 
 /**
  * The domain for the ALPs domain.
+ * @param om the object model to use for the domain
  * @author Gianluca Amato <gamato@unich.it>
  */
-class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
+class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
   import ALPsDomain._
-  
+
   type Span = Map[om.Field, Node]
-  
+
   type EdgeSet = Map[Node, Span]
+
+  val psdom = new PairSharing[om.type, Node](om)
+
+  implicit object nodeOrdering extends Ordering[Node] {
+    def compare(x: Node, y: Node) = x.hashCode - y.hashCode
+  }
 
   def top(types: Seq[om.Type]) = {
     val labels = for { t <- types } yield if (om.mayShare(t, t)) Some(Node()) else None
-    val edges: EdgeSet = (for { (t, Some(n)) <- types zip labels } yield { 
-      val span: Span = (for { f <- om.fieldsOf(t); tf = om.typeOf(f); if om.mayShare(tf, tf) } yield f -> Node()) (collection.breakOut)
+    val edges: EdgeSet = (for { (t, Some(n)) <- types zip labels } yield {
+      val span: Span = (for { f <- om.fieldsOf(t); tf = om.typeOf(f); if om.mayShare(tf, tf) } yield f -> Node())(collection.breakOut)
       n -> span
-    })  (collection.breakOut)  
-    new Property(labels, edges.withDefaultValue(Map.empty), types)
+    })(collection.breakOut)
+    val nodes = for ((src, span) <- edges; n <- Seq(src) ++ span.values) yield n
+    new Property(labels, edges.withDefaultValue(Map.empty), types, psdom.bottom(nodes))
   }
 
-  def bottom(types: Seq[om.Type]) = new Property(Seq.fill(types.size)(None), Map().withDefaultValue(Map.empty), types)
+  def bottom(types: Seq[om.Type]) = new Property(Seq.fill(types.size)(None), Map().withDefaultValue(Map.empty), types, psdom.bottom(Iterable()))
 
-  def apply(labels: Seq[Option[Node]], edges: Map[Node, Map[om.Field, Node]], types: Seq[om.Type]): Property =
-    new Property(labels, edges.withDefaultValue(Map.empty), types)
+  def apply(labels: Seq[Option[Node]], edges: EdgeSet, types: Seq[om.Type], ps: psdom.Property): Property =
+    new Property(labels, edges.withDefaultValue(Map.empty), types, ps)
+
+  def apply(labels: Seq[Option[Node]], edges: EdgeSet, types: Seq[om.Type]): Property = {
+    val nodes = getAllNodes(labels, edges)
+    val typednodes = (nodes map { (n: Node) => (n, getNodeType(n, labels, edges, types)) }).toSeq
+    apply(labels, edges, types, psdom.top(typednodes))
+  }
+
+  def apply(labels: Seq[Option[Node]], edges: Seq[(Node, om.Field, Node)], types: Seq[om.Type], ps: psdom.Property): Property = {
+    val graphEdges =
+      edges.groupBy(_._1).
+        mapValues(_.groupBy(_._2).
+          mapValues(_.head._3))
+    apply(labels, graphEdges, types, ps)
+  }
 
   def apply(labels: Seq[Option[Node]], edges: Seq[(Node, om.Field, Node)], types: Seq[om.Type]): Property = {
     val graphEdges =
@@ -56,7 +78,20 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     apply(labels, graphEdges, types)
   }
 
-  case class Property(labels: Seq[Option[Node]], edges: EdgeSet, types: Seq[om.Type]) extends ObjectProperty[Property] {
+  private def getAllNodes(labels: Iterable[Option[Node]], edges: EdgeSet) = {
+    val allNodes = collection.mutable.SortedSet[Node]()
+    for (Some(n) <- labels) allNodes += n
+    for ((src, span) <- edges; (f, n) <- span) allNodes += n
+    allNodes
+  }
+
+  private def getNodeType(n: Node, labels: Iterable[Option[Node]], edges: EdgeSet, types: Iterable[om.Type]) = {
+    val type1 = om.glbApprox(for ((Some(`n`), t) <- labels zip types) yield t)
+    val type2 = om.glbApprox(for ( span <- edges.values; (f, `n`) <- span ) yield om.typeOf(f)) 
+    if (!type1.isDefined) type2 else if (! type2.isDefined) type1 else om.glbApprox(Seq(type1.get, type2.get))
+  }
+
+  case class Property(labels: Seq[Option[Node]], edges: EdgeSet, types: Seq[om.Type], ps: psdom.Property) extends ObjectProperty[Property] {
 
     /**
      * Apply a morphism to a graph.
@@ -72,19 +107,19 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         newdst = m(dst)
         if newdst.isDefined
       } yield f -> newdst.get)
-      new Property(newLabels, newEdges, types)
+      new Property(newLabels, newEdges, types, ps.applyMorphism(m))
     }
 
     /**
-     * Determines whether the node `n` is directly accessible from variables 
+     * Determines whether the node `n` is directly accessible from variables
      */
-    
+
     private def isFirstLevel(n: Node): Boolean = { labels contains Some(n) }
-    
+
     /**
      * Returns the glb approximation of the types for the node n
      */
-    private def nodeType(n: Node): Option[om.Type] = {      
+    private def nodeType(n: Node): Option[om.Type] = {
       om.glbApprox(for ((Some(`n`), t) <- labels zip types) yield t)
     }
 
@@ -100,9 +135,22 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     }
 
     /**
+     * Returns the edges removed from `n` when its type becomes t
+     */
+    private def reduceSpan(n: Node, t: Option[om.Type]) = {
+      if (t.isDefined) {
+        val removedFields = om.fieldsOf(nodeType(n).get) -- om.fieldsOf(t.get)
+        val removedNodes = for { (f, dst) <- edges(n); if removedFields contains f } yield dst
+        (edges(n) -- removedFields, removedNodes)
+      } else {
+        (edges(n), edges(n).values)
+      }
+    }
+
+    /**
      *  Returns the set of nodes reachable by `n`.
      */
-    private def reachableNodes(n: Node) = {
+    private def reachableNodesFrom(n: Node) = {
       val s = collection.mutable.Set(n)
       val q = collection.mutable.Queue(n)
       while (!q.isEmpty) {
@@ -113,6 +161,16 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         }
       }
       s
+    }
+
+    /**
+     * Returns the set of nodes reachable without passing from node `forbidden`
+     */
+    private def reachableNodesForbidden(forbidden: Node) = {
+      val firstLevel = collection.mutable.Set[Node]()
+      for (Some(n) <- labels; if n != forbidden) firstLevel += n
+      val secondLevel = firstLevel flatMap { edges(_).values }
+      firstLevel ++= secondLevel
     }
 
     /**
@@ -129,8 +187,7 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     }
 
     /**
-     * Returns the set of 1st level nodes which contains the
-     * provided field.
+     * Returns the set of 1st level nodes which contains the provided field.
      */
     private def nodesWithField(field: om.Field) = {
       val nodes: Set[Node] = (for {
@@ -185,327 +242,6 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
      * Returns the type of the variable i
      */
     def typeOf(i: Int) = types(i)
-
-    def widening(that: Property): Property = this.union(that)
-
-    def narrowing(that: Property): Property = that
-
-    def union(other: Property): Property = {
-
-      class UnionBuilder {
-        private val map1 = collection.mutable.Map[Node, Node]()
-        private val map2 = collection.mutable.Map[Node, Node]()
-        private val reachable1 = collection.mutable.Set[Node]()
-        private val reachable2 = collection.mutable.Set[Node]()
-        private val newedges = collection.mutable.Map[Node, Map[om.Field, Node]]().withDefaultValue(Map())
-
-        def getEdges = newedges.toMap.withDefaultValue(Map())
-
-        def copySubgraph(g: Property, reachable: collection.mutable.Set[Node], map: collection.mutable.Map[Node, Node], node: Node): Node = {
-          map.get(node) match {
-            case None =>
-              val newnode = Node()
-              reachable += newnode
-              map(node) = newnode
-              val span = for ((f, n) <- g.edges(node)) yield (f, copySubgraph(g, reachable, map, n))
-              newedges(newnode) = span
-              newnode
-            case Some(newnode) =>
-              newnode
-          }
-        }
-
-        def matchFields(newnode: Node, n1: Node, n2: Node) = {
-          reachable1 += newnode
-          reachable2 += newnode
-          for ((f, n) <- edges(n1)) {
-            val newtgt = matchNode(Some(n), other.edges(n2).get(f))
-            newedges(newnode) += f -> newtgt
-          }
-          for ((f, n) <- other.edges(n2)) {
-            val newtgt = matchNode(edges(n1).get(f), Some(n))
-            newedges(newnode) += f -> newtgt
-          }
-          newnode
-        }
-
-        def matchNode(on1: Option[Node], on2: Option[Node]): Node = {
-          (on1, on2) match {
-            case (Some(n1), Some(n2)) =>
-              (map1 isDefinedAt n1, map2 isDefinedAt n2) match {
-                case (false, false) =>
-                  map1 += n1 -> n1
-                  map2 += n2 -> n1
-                  matchFields(n1, n1, n2)
-                case (true, false) =>
-                  val newnode = Node()
-                  map1 += n1 -> newnode
-                  matchFields(newnode, n1, n2)
-                case (false, true) =>
-                  val newnode = Node()
-                  map2 += n2 -> newnode
-                  matchFields(newnode, n1, n2)
-                case (true, true) =>
-                  if (map1(n1) == map2(n2))
-                    map1(n1)
-                  else {
-                    val newnode = Node()
-                    matchFields(newnode, n1, n2)
-                  }
-              }
-            case (None, Some(n2)) =>
-              map2.get(n2) match {
-                case None =>
-                  newedges(n2) = other.edges(n2)
-                  map2(n2) = n2
-                  n2
-                case Some(n) =>
-                  if (reachable1 contains n) {
-                    copySubgraph(other, reachable1, collection.mutable.Map(), n2)
-                  } else
-                    n
-              }
-            case (Some(n1), None) =>
-              map1.get(n1) match {
-                case None =>
-                  newedges(n1) = edges(n1)
-                  map1(n1) = n1
-                  n1
-                case Some(n) =>
-                  if (reachable2 contains n) {
-                    copySubgraph(Property.this, reachable2, collection.mutable.Map(), n1)
-                  } else
-                    n
-              }
-            case _ =>
-              throw new IllegalStateException("This should never happen")
-          }
-        }
-      }
-
-      val unionBuilder = new UnionBuilder()
-      val newlabels = for (i <- 0 until labels.length) yield {
-        val n1 = labelOf(i)
-        val n2 = other.labelOf(i)
-        if (n1.isDefined || n2.isDefined)
-          Some(unionBuilder.matchNode(labelOf(i), other.labelOf(i)))
-        else
-          None
-      }
-      new Property(newlabels, unionBuilder.getEdges, types)
-    }
-
-    def intersection(other: Property): Property = {
-      val partition = DisjointSets[Option[Node]](None)
-
-      def computePartition(on1: Option[Node], on2: Option[Node]): Unit = {
-        if (!partition.inSamePartition(on1, on2)) {
-          partition.union(on1, on2)
-          (on1, on2) match {
-            case (Some(n1), Some(n2)) =>
-              for ((f, n) <- edges(n1); if other.isFirstLevel(n2)) computePartition(Some(n), other.edges(n2).get(f))
-              for ((f, n) <- other.edges(n2); if isFirstLevel(n1)) computePartition(edges(n1).get(f), Some(n))
-            case (Some(n1), None) =>
-              for ((f, n) <- edges(n1)) computePartition(Some(n), None)
-            case (None, Some(n2)) =>
-              for ((f, n) <- other.edges(n2)) computePartition(None, Some(n))
-            case (None, None) =>
-              throw new IllegalStateException("We should never reach this state")
-            case (_, _) =>
-          }
-        }
-      }
-
-      def mapWithPartition(n: Option[Node], nullNode: Option[Node]): Option[Node] = {
-        val repr = partition(n)
-        if (repr == nullNode) None else repr
-      }
-
-      for ((on1, on2) <- labels zip other.labels)
-        computePartition(on1, on2)
-      val nullNode = partition(None)
-      val newLabels = labels map { mapWithPartition(_, nullNode) }
-      val newEdges = for ((src, span) <- edges; reprsrc <- partition.find(Some(src)); if reprsrc != nullNode)
-        yield reprsrc.get -> (for ((f, tgt) <- span; reprtgt = partition(Some(tgt)); if reprtgt != nullNode)
-        yield f -> reprtgt.get)
-      new Property(newLabels, newEdges.withDefaultValue(Map()), types)
-
-    }
-
-    def isEmpty: Boolean = false
-
-    def mapVariables(rho: Seq[Int]): Property = {
-      val newsize = rho.count(_ != -1)
-      val revrho = collection.mutable.Buffer.fill(newsize)(0)
-      for ((newidx, oldidx) <- rho.zipWithIndex; if newidx != -1) revrho(newidx) = oldidx
-      mapVariablesReverse(revrho)
-    }
-
-    def mapVariablesReverse(rho: Seq[Int]): Property = {
-      new Property(rho map labels, edges, rho map types)
-    }
-
-    def top: Property = domain.top(fiber)
-
-    def bottom: Property = domain.bottom(fiber)
-
-    def isTop: Boolean = this == top
-
-    def isBottom: Boolean = labels forall { _.isEmpty }
-
-    def connect(other: Property, common: Int): Property = {
-      // we check wether it is possible to reach the non-common variable in this from the common
-      // variables. Here sharing might help.
-      val escapeFromCommon = (labels zip types) exists { case (Some(n), t) => escape(n, Some(t)); case _ => false }
-
-      if (!escapeFromCommon)
-        Property(
-          labels.dropRight(common) ++ other.labels.drop(common),
-          (edges ++ other.edges) withDefaultValue Map(),
-          types.dropRight(common) ++ other.types.drop(common))
-      else {
-        // set of 1st level nodes reachable in the non-common part of this
-        val reachableNodes: Set[Node] = (for (on <- labels; n <- on) yield n)(collection.breakOut)
-        val newedges =
-          for ((src, span) <- edges) yield src ->
-            (if (reachableNodes contains src)
-              fullSpan(nodeType(src).get)
-            else
-              span)
-        new Property(
-          labels.dropRight(common) ++ other.labels.drop(common),
-          (newedges ++ other.edges) withDefaultValue Map(),
-          types.dropRight(common) ++ other.types.drop(common))
-      }
-    }
-
-    def fiber = types
-
-    def dimension = types.size
-
-    def addUnknownVariable(t: om.Type): Property = {
-      new Property(labels :+ None, edges, types :+ t)
-    }
-
-    def addFreshVariable(t: om.Type): Property = {
-      val n = Node()
-      val span: Map[om.Field, Node] = om.fieldsOf(t).map { _ -> Node() }(collection.breakOut)
-      new Property(labels :+ Some(n), edges updated (n, span), types :+ t)
-    }
-
-    def addVariable(t: om.Type): Property = {
-      addFreshVariable(t)
-    }
-
-    def delVariable(v: Int): Property = {
-      if (v == dimension - 1)
-        new Property(labels.dropRight(1), edges, types.dropRight(1))
-      else
-        new Property(labels.take(v) ++ labels.drop(v + 1), edges, types.take(v) ++ types.drop(v + 1))
-    }
-
-    def assignNull(dst: Int = dimension - 1): Property = {
-      Property(labels.updated(dst, None), edges, types)
-    }
-
-    def assignVariable(dst: Int, src: Int): Property = {
-      labelOf(src) match {
-        case None =>
-          assignNull(dst)
-        case Some(src) =>
-          Property(labels.updated(dst, Some(src)), edges, types)
-      }
-    }
-
-    def assignVariableToField(dst: Int, field: om.Field, src: Int): Property = {
-      (labelOf(dst), labelOf(src)) match {
-        case (None, _) =>
-          bottom
-        case (Some(dstNode), None) =>
-          val newspan = edges(dstNode) - field
-          Property(labels, edges.updated(dstNode, newspan), types)
-        case (Some(dstNode), Some(srcNode)) =>
-          val newspan = edges(dstNode) + (field -> srcNode)          
-          // we need to fresh all node which may possibly be reached by dst.field. In the presence of
-          // sharing, we may restrict  possibleAliases using sharing information
-          val possibleAliases = nodesWithField(field)
-          val newedges = for ((n, span) <- edges.updated(dstNode, newspan)) yield if (n == dstNode)
-            n -> span
-          else if (possibleAliases contains n)
-            n -> span.updated(field, Node())
-          else
-            n -> span
-          Property(labels, newedges withDefaultValue Map(), types)
-      }
-    }
-
-    def assignFieldToVariable(dst: Int, src: Int, field: om.Field): Property = {
-      if (mustBeNull(src))
-        bottom
-      else {
-        labelOf(src, field) match {
-          case None => assignNull(dst)
-          case Some(src) =>
-            Property(labels.updated(dst, Some(src)), edges, types)
-        }
-      }
-    }
-
-    def castVariable(v: Int, newtype: om.Type): Property = {
-      labelOf(v) match {
-        case None => Property(labels, edges, types updated (v, newtype))
-        case Some(n) => Property(labels, edges updated (n, expandSpan(n, newtype)), types updated (v, newtype))
-      }
-    }
-   
-    def testNull(v: Int): Property = {
-      labelOf(v) match {
-        case None => this
-        case Some(nullnode) =>
-          val nodes = reachableNodes(nullnode)
-          val newlabels = labels map { _ flatMap { n => if (nodes contains n) None else Some(n) } }
-          val newedges = edges mapValues { span => span filterNot { case (f, n) => nodes contains n } }
-          /**
-           * @todo We need to repeat here the withDefaultValue option.... we probably should consider rewriting
-           * stuff so that we do no need them
-           */
-          new Property(newlabels, newedges withDefaultValue Map(), types)
-      }
-    }
-
-    def testNotNull(v: Int): Property = {
-      if (mustBeNull(v))
-        bottom
-      else
-        this
-    }
-
-    def mustBeNull(v: Int, fieldseq: Seq[om.Field]) = {
-      val loc = labelOf(v)
-      (loc, fieldseq) match {
-        case (None, _) => true	
-        case (Some(node), Seq(f)) => ! edges(node).isDefinedAt(f)
-        case _ => false
-      }
-    }
-
-    def mayBeNull(v: Int, fieldseq: Seq[om.Field]) = true
-    
-    def mayShare(v1: Int, v2: Int) = (labels(v1) ,labels(v2)) match {
-      case (Some(n1), Some(n2)) => true
-      case _ => false      
-    }
-    
-    def mustShare(v1: Int, v2: Int) = false
-    
-    def mayBeAliases(v1: Int, v2: Int) = labels(v1).isDefined && labels(v2).isDefined && om.mayBeAliases(types(v1),types(v2))
-    
-    def mustBeAliases(v1: Int, v2: Int) = labels(v1).isDefined && labels(v2) == labels(v1)
-    
-    def mayBeWeakAliases(v1: Int, v2: Int) = true
-    
-    def mustBeWeakAliases(v1: Int, v2: Int) = labels(v1) == labels(v2)
-    
     /**
      * Returns, if it exists, a morphism connecting `this` and `other`.
      * @param other the other graph. We assume the two graphs are over the same fiber, since
@@ -610,6 +346,157 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       }
     }
 
+    def widening(that: Property): Property = this.union(that)
+
+    def narrowing(that: Property): Property = that
+
+    def union(other: Property): Property = {
+
+      class UnionBuilder {
+        val map1 = collection.mutable.Map[Node, Node]()
+        val map2 = collection.mutable.Map[Node, Node]()
+        private val reachable1 = collection.mutable.Set[Node]()
+        private val reachable2 = collection.mutable.Set[Node]()
+        private val newedges = collection.mutable.Map[Node, Map[om.Field, Node]]().withDefaultValue(Map())
+
+        def getEdges = newedges.toMap.withDefaultValue(Map())
+
+        def copySubgraph(g: Property, reachable: collection.mutable.Set[Node], map: collection.mutable.Map[Node, Node], node: Node): Node = {
+          map.get(node) match {
+            case None =>
+              val newnode = Node()
+              reachable += newnode
+              map(node) = newnode
+              val span = for ((f, n) <- g.edges(node)) yield (f, copySubgraph(g, reachable, map, n))
+              newedges(newnode) = span
+              newnode
+            case Some(newnode) =>
+              newnode
+          }
+        }
+
+        def matchFields(newnode: Node, n1: Node, n2: Node) = {
+          reachable1 += newnode
+          reachable2 += newnode
+          for ((f, n) <- edges(n1)) {
+            val newtgt = matchNode(Some(n), other.edges(n2).get(f))
+            newedges(newnode) += f -> newtgt
+          }
+          for ((f, n) <- other.edges(n2)) {
+            val newtgt = matchNode(edges(n1).get(f), Some(n))
+            newedges(newnode) += f -> newtgt
+          }
+          newnode
+        }
+
+        def matchNode(on1: Option[Node], on2: Option[Node]): Node = {
+          (on1, on2) match {
+            case (Some(n1), Some(n2)) =>
+              (map1 isDefinedAt n1, map2 isDefinedAt n2) match {
+                case (false, false) =>
+                  map1 += n1 -> n1
+                  map2 += n2 -> n1
+                  matchFields(n1, n1, n2)
+                case (true, false) =>
+                  val newnode = Node()
+                  map1 += n1 -> newnode
+                  matchFields(newnode, n1, n2)
+                case (false, true) =>
+                  val newnode = Node()
+                  map2 += n2 -> newnode
+                  matchFields(newnode, n1, n2)
+                case (true, true) =>
+                  if (map1(n1) == map2(n2))
+                    map1(n1)
+                  else {
+                    val newnode = Node()
+                    matchFields(newnode, n1, n2)
+                  }
+              }
+            case (None, Some(n2)) =>
+              map2.get(n2) match {
+                case None =>
+                  newedges(n2) = other.edges(n2)
+                  map2(n2) = n2
+                  n2
+                case Some(n) =>
+                  if (reachable1 contains n) {
+                    copySubgraph(other, reachable1, collection.mutable.Map(), n2)
+                  } else
+                    n
+              }
+            case (Some(n1), None) =>
+              map1.get(n1) match {
+                case None =>
+                  newedges(n1) = edges(n1)
+                  map1(n1) = n1
+                  n1
+                case Some(n) =>
+                  if (reachable2 contains n) {
+                    copySubgraph(Property.this, reachable2, collection.mutable.Map(), n1)
+                  } else
+                    n
+              }
+            case _ =>
+              throw new IllegalStateException("This should never happen")
+          }
+        }
+      }
+
+      val unionBuilder = new UnionBuilder()
+      val newLabels = for (i <- 0 until labels.length) yield {
+        val n1 = labelOf(i)
+        val n2 = other.labelOf(i)
+        if (n1.isDefined || n2.isDefined)
+          Some(unionBuilder.matchNode(labelOf(i), other.labelOf(i)))
+        else
+          None
+      }
+      val newPs = ps.applyMorphism(unionBuilder.map1.toMap) union other.ps.applyMorphism(unionBuilder.map2.toMap)
+      new Property(newLabels, unionBuilder.getEdges, types, newPs)
+    }
+
+    def intersection(other: Property): Property = {
+      val partition = DisjointSets[Option[Node]](None)
+
+      def computePartition(on1: Option[Node], on2: Option[Node]): Unit = {
+        if (!partition.inSamePartition(on1, on2)) {
+          partition.union(on1, on2)
+          (on1, on2) match {
+            case (Some(n1), Some(n2)) =>
+              for ((f, n) <- edges(n1); if other.isFirstLevel(n2)) computePartition(Some(n), other.edges(n2).get(f))
+              for ((f, n) <- other.edges(n2); if isFirstLevel(n1)) computePartition(edges(n1).get(f), Some(n))
+            case (Some(n1), None) =>
+              for ((f, n) <- edges(n1)) computePartition(Some(n), None)
+            case (None, Some(n2)) =>
+              for ((f, n) <- other.edges(n2)) computePartition(None, Some(n))
+            case (None, None) =>
+              throw new IllegalStateException("We should never reach this state")
+            case (_, _) =>
+          }
+        }
+      }
+
+      def mapWithPartition(n: Option[Node], nullNode: Option[Node]): Option[Node] = {
+        val repr = partition(n)
+        if (repr == nullNode) None else repr
+      }
+
+      for ((on1, on2) <- labels zip other.labels)
+        computePartition(on1, on2)
+      val nullNode = partition(None)
+      val newLabels = labels map { mapWithPartition(_, nullNode) }
+      val newEdges = for ((src, span) <- edges; reprsrc <- partition.find(Some(src)); if reprsrc != nullNode)
+        yield reprsrc.get -> (for ((f, tgt) <- span; reprtgt = partition(Some(tgt)); if reprtgt != nullNode)
+        yield f -> reprtgt.get)
+      val newPs = ps.applyMorphism(n => { val repr = partition(Some(n)); if (repr == nullNode) None else Some(n) })
+
+      new Property(newLabels, newEdges.withDefaultValue(Map()), types, newPs)
+
+    }
+
+    def isEmpty: Boolean = false
+
     def mkString(vars: Seq[String]) = mkString(vars, false)
 
     def mkString(vars: Seq[String], hashValued: Boolean) = {
@@ -624,13 +511,211 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         val l2 = if (hashValued) ntgt.hashCode() else nodenames.getOrElseUpdate(ntgt, { currnum += 1; currnum })
         s"n${l1} -- ${f} --> n${l2}"
       }
-      s1.mkString("Vars: ", ", ", "") + " // " + s2.mkString("Edges: ", ", ", "")
+      val nodeNames = { (n: Node) => "n" + (if (hashValued) n.hashCode else nodenames(n)) }
+      s1.mkString("Vars: ", ", ", "") + " // " + s2.mkString("Edges: ", ", ", "") + " // " + ps.mkString(nodeNames)
     }
+
+    def mapVariables(rho: Seq[Int]): Property = {
+      val newsize = rho.count(_ != -1)
+      val revrho = collection.mutable.Buffer.fill(newsize)(0)
+      for ((newidx, oldidx) <- rho.zipWithIndex; if newidx != -1) revrho(newidx) = oldidx
+      mapVariablesReverse(revrho)
+    }
+
+    def mapVariablesReverse(rho: Seq[Int]): Property = {
+      new Property(rho map labels, edges, rho map types, ps)
+    }
+
+    def top: Property = domain.top(fiber)
+
+    def bottom: Property = domain.bottom(fiber)
+
+    def isTop: Boolean = this == top
+
+    def isBottom: Boolean = labels forall { _.isEmpty }
+
+    def connect(other: Property, common: Int): Property = {
+      // we check whether it is possible to reach the non-common variable in this from the common
+      // variables. Here sharing might help.
+      val escapeFromCommon = (labels zip types) exists { case (Some(n), t) => escape(n, Some(t)); case _ => false }
+      if (!escapeFromCommon)
+        Property(
+          labels.dropRight(common) ++ other.labels.drop(common),
+          (edges ++ other.edges) withDefaultValue Map(),
+          types.dropRight(common) ++ other.types.drop(common), ps)
+      else {
+        // set of 1st level nodes reachable in the non-common part of this
+        val reachableNodes: Set[Node] = (for (on <- labels; n <- on) yield n)(collection.breakOut)
+        val newedges =
+          for ((src, span) <- edges) yield src ->
+            (if (reachableNodes contains src)
+              fullSpan(nodeType(src).get)
+            else
+              span)
+        new Property(
+          labels.dropRight(common) ++ other.labels.drop(common),
+          (newedges ++ other.edges) withDefaultValue Map(),
+          types.dropRight(common) ++ other.types.drop(common), ps)
+      }
+    }
+
+    def fiber = types
+
+    def dimension = types.size
+
+    def addUnknownVariable(t: om.Type): Property = {
+      new Property(labels :+ None, edges, types :+ t, ps)
+    }
+
+    def addFreshVariable(t: om.Type): Property = {
+      val n = Node()
+      val span: Map[om.Field, Node] = om.fieldsOf(t).map { _ -> Node() }(collection.breakOut)
+      val freshps = psdom.top(Iterable(n) ++ span.values)
+      new Property(labels :+ Some(n), edges updated (n, span), types :+ t, ps union freshps)
+    }
+
+    def addVariable(t: om.Type): Property = {
+      addFreshVariable(t)
+    }
+
+    def delVariable(v: Int): Property = {
+      val (newEdges, newPs) = labels(v) match {
+        case None => (edges, ps)
+        case Some(n) =>
+          val reachable = reachableNodesForbidden(n)
+          if (reachable contains n) {
+            val newNodeTypes = for ((Some(`n`), i) <- labels.zipWithIndex) yield types(i)
+            val newType = om.glbApprox(newNodeTypes)
+            val (newSpan, detached) = reduceSpan(n, newType)
+            val removeFromPs = detached filterNot { reachable contains _ }
+            val newPs = ps.delChildren(n, removeFromPs.toSet)
+            (edges updated (n, newSpan), newPs)
+          } else {
+            (edges filterKeys { reachable contains _ }, ps)
+          }
+      }
+      if (v == dimension - 1)
+        new Property(labels.dropRight(1), newEdges, types.dropRight(1), newPs)
+      else
+        new Property(labels.take(v) ++ labels.drop(v + 1), newEdges, types.take(v) ++ types.drop(v + 1), newPs)
+      // TODO: perhaps I should remove all unreachable nodes
+    }
+
+    def assignNull(dst: Int = dimension - 1): Property = {
+      Property(labels.updated(dst, None), edges, types, ps)
+      // TODO: perhaps I should remove all unreachable nodes
+    }
+
+    def assignVariable(dst: Int, src: Int): Property = {
+      labelOf(src) match {
+        case None =>
+          assignNull(dst)
+        case Some(src) =>
+          // TODO: perhaps I should remove all unreachable nodes
+          Property(labels.updated(dst, Some(src)), edges, types, ps)
+      }
+    }
+
+    def assignVariableToField(dst: Int, field: om.Field, src: Int): Property = {
+      (labelOf(dst), labelOf(src)) match {
+        case (None, _) =>
+          bottom
+        case (Some(dstNode), None) =>
+          val newspan = edges(dstNode) - field
+          Property(labels, edges.updated(dstNode, newspan), types, ps)
+        case (Some(dstNode), Some(srcNode)) =>
+          val newspan = edges(dstNode) + (field -> srcNode)
+          val possibleAliases = nodesWithField(field) filter { ps.mayShare(_, dstNode) }
+          val newedges = for ((n, span) <- edges.updated(dstNode, newspan)) yield if (n == dstNode)
+            n -> span
+          else if (possibleAliases contains n)
+            n -> span.updated(field, Node())
+          else
+            n -> span
+          Property(labels, newedges withDefaultValue Map(), types, ps)
+      }
+    }
+
+    def assignFieldToVariable(dst: Int, src: Int, field: om.Field): Property = {
+      if (mustBeNull(src))
+        bottom
+      else {
+        labelOf(src, field) match {
+          case None => assignNull(dst)
+          case Some(src) =>
+            Property(labels.updated(dst, Some(src)), edges, types, ps)
+        }
+      }
+    }
+
+    // Here I am assuming objects are only cast downwards
+    def castVariable(v: Int, newtype: om.Type): Property = {
+      labelOf(v) match {
+        case None => Property(labels, edges, types updated (v, newtype), ps)
+        case Some(n) =>
+          val newspan = expandSpan(n, newtype)
+          Property(labels, edges updated (n, newspan), types updated (v, newtype), ps.addChildren(n, newspan.values))
+      }
+    }
+
+    def testNull(v: Int): Property = {
+      labelOf(v) match {
+        case None => this
+        case Some(nullnode) =>
+          val nodes = reachableNodesFrom(nullnode)
+          val newlabels = labels map { _ flatMap { n => if (nodes contains n) None else Some(n) } }
+          val newedges = edges mapValues { span => span filterNot { case (f, n) => nodes contains n } }
+          /**
+           * @todo We need to repeat here the withDefaultValue option.... we probably should consider rewriting
+           * stuff so that we do no need them
+           */
+          new Property(newlabels, newedges withDefaultValue Map(), types, ps delNodes nodes.toSet)
+      }
+    }
+
+    def testNotNull(v: Int): Property = {
+      if (mustBeNull(v))
+        bottom
+      else
+        this
+    }
+
+    def mustBeNull(v: Int, fieldseq: Seq[om.Field]) = {
+      val loc = labelOf(v)
+      (loc, fieldseq) match {
+        case (None, _) => true
+        case (Some(node), Seq(f)) => !edges(node).isDefinedAt(f)
+        case _ => false
+      }
+    }
+
+    def mayBeNull(v: Int, fieldseq: Seq[om.Field]) = true
+
+    def mayShare(v1: Int, v2: Int) = (labels(v1), labels(v2)) match {
+      case (Some(n1), Some(n2)) =>
+        val nodes1 = reachableNodesFrom(n1)
+        val nodes2 = reachableNodesFrom(n2)
+        nodes1 exists { n => nodes2 exists { m => ps.mayShare(n, m) } }
+      case _ => false
+    }
+
+    def mustShare(v1: Int, v2: Int) = false
+
+    def mayBeAliases(v1: Int, v2: Int) = (labels(v1), labels(v2)) match {
+      case (Some(n1), Some(n2)) => om.mayBeAliases(types(v1), types(v2)) && ps.mayBeAliases(n1, n2)
+      case _ => false
+    }
+
+    def mustBeAliases(v1: Int, v2: Int) = labels(v1).isDefined && labels(v2) == labels(v1)
+
+    def mayBeWeakAliases(v1: Int, v2: Int) = true
+
+    def mustBeWeakAliases(v1: Int, v2: Int) = labels(v1) == labels(v2)
   }
 }
 
 object ALPsDomain extends ObjectDomainFactory {
-  
+
   /**
    * A node in the ALPs graph. We tried to use integer for nodes, but since they
    * are mostly put inside maps, hence they should be boxed, it is not very
@@ -643,15 +728,15 @@ object ALPsDomain extends ObjectDomainFactory {
   /**
    * The factory for nodes.
    */
-  object Node {    
-    def apply(): Node = new Node      
+  object Node {
+    def apply(): Node = new Node
   }
-  
+
   /**
-   * A morphism is a function from Node to Option[Node]. We could use 
+   * A morphism is a function from Node to Option[Node]. We could use
    * partial function, but I think a standard function is more convenient.
    */
   type Morphism = Function[Node, Option[Node]]
-  
+
   def apply[OM <: ObjectModel](om: OM) = new ALPsDomain(om)
 }

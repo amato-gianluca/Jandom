@@ -23,7 +23,7 @@ import org.scalatest.FunSuite
 
 /**
  * A test suite for PairSharing domain.
- * @author Gianluca Amato <gamato@unich.it> 
+ * @author Gianluca Amato <gamato@unich.it>
  *
  */
 class PairSharingSuite extends FunSuite {

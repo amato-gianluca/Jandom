@@ -16,13 +16,11 @@
  * along with JANDOM.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package it.unich.jandom.domains
+package it.unich.jandom.domains.objects
 
 import org.scalatest.FunSpec
-import it.unich.jandom.domains.objects.ObjectDomain
-import it.unich.jandom.domains.objects.ObjectModel
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.prop.Tables._
+import it.unich.jandom.domains.CartesianFiberedDomainSuite
 
 /**
  * This is a common trait for test suites of object domains. It contains all the standard tests

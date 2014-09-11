@@ -16,7 +16,7 @@
  * along with JANDOM.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package it.unich.sci.jandom.domains.objects
+package it.unich.jandom.domains.objects
 
 /**
  * @author Gianluca Amato <gamato@unich.it>
