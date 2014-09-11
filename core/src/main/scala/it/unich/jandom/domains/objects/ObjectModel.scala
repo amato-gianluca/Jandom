@@ -105,7 +105,7 @@ object ObjectModel {
     def fieldsOf(t: Type) = Set()
     def typeOf(f: Field) = {}
     def lteq(t1: Type, t2: Type) = true
-    def glbApprox(ts: Iterable[Type]) = Some()
+    def glbApprox(ts: Iterable[Type]) = Some(())
   }
 
   /**

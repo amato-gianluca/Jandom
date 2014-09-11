@@ -425,12 +425,12 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
           val newspan = edges(dstNode) - field
           Property(labels, edges.updated(dstNode, newspan), types)
         case (Some(dstNode), Some(srcNode)) =>
-          val newspan = edges(dstNode) + (field -> srcNode)
+          val newspan = edges(dstNode) + (field -> srcNode)          
           // we need to fresh all node which may possibly be reached by dst.field. In the presence of
           // sharing, we may restrict  possibleAliases using sharing information
           val possibleAliases = nodesWithField(field)
-          val newedges = for ((n, span) <- edges) yield if (n == dstNode)
-            n -> newspan
+          val newedges = for ((n, span) <- edges.updated(dstNode, newspan)) yield if (n == dstNode)
+            n -> span
           else if (possibleAliases contains n)
             n -> span.updated(field, Node())
           else
@@ -483,8 +483,8 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     def mustBeNull(v: Int, fieldseq: Seq[om.Field]) = {
       val loc = labelOf(v)
       (loc, fieldseq) match {
-        case (None, _) => true
-        case (Some(node), Seq(f)) => edges(node).isDefinedAt(f)
+        case (None, _) => true	
+        case (Some(node), Seq(f)) => ! edges(node).isDefinedAt(f)
         case _ => false
       }
     }
@@ -501,6 +501,10 @@ class ALPsDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     def mayBeAliases(v1: Int, v2: Int) = labels(v1).isDefined && labels(v2).isDefined && om.mayBeAliases(types(v1),types(v2))
     
     def mustBeAliases(v1: Int, v2: Int) = labels(v1).isDefined && labels(v2) == labels(v1)
+    
+    def mayBeWeakAliases(v1: Int, v2: Int) = true
+    
+    def mustBeWeakAliases(v1: Int, v2: Int) = labels(v1) == labels(v2)
     
     /**
      * Returns, if it exists, a morphism connecting `this` and `other`.

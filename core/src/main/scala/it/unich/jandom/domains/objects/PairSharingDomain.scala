@@ -94,6 +94,8 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
     def isBottom = ps.isEmpty
 
     def isEmpty = false
+    
+    def typeOf(v: Int) = rtypes(dimension - 1 - v)
 
     def union(that: Property) = {
       assert(dimension == that.dimension)
@@ -213,7 +215,11 @@ class PairSharingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] 
     def mayBeAliases(v1: Int, v2: Int) = mayShare(v1,v2)
     
     def mustBeAliases(v1: Int, v2: Int) = false
-
+    
+    def mayBeWeakAliases(v1: Int, v2: Int) = true
+    
+    def mustBeWeakAliases(v1: Int, v2: Int) = mustBeNull(v1) && mustBeNull(v2)
+    
     def mkString(vars: Seq[String]) = {
       val pairs = ps map { case UP(l, r) => s"(${vars(l)}, ${vars(r)})" }
       s"${pairs.mkString("[ ", ", ", " ]")} types ${rtypes.reverse.mkString("< ", ", ", " >")}"

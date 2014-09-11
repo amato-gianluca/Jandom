@@ -50,6 +50,11 @@ trait ObjectDomain[OM <: ObjectModel] extends CartesianFiberedDomain {
     this: P =>
 
     /**
+     * Returns the type of a variable
+     */
+    def typeOf(v: Int): om.Type
+
+    /**
      * Add a new variable. The new variable may be in whatever relationship with the
      * old ones.
      * @param t the type of the new variable
@@ -112,14 +117,29 @@ trait ObjectDomain[OM <: ObjectModel] extends CartesianFiberedDomain {
     def mustShare(v1: Int, v2: Int): Boolean
 
     /**
-     * Returns true if two variables may be aliases
+     * Returns true if two variables may be aliases, i.e. if they might point to the same
+     * location.
      */
     def mayBeAliases(v1: Int, v2: Int): Boolean
 
     /**
-     * Returns true if two variables must be aliases
+     * Returns true if two variables must be aliases, i.e. they should point to the same
+     * location.
      */
     def mustBeAliases(v1: Int, v2: Int): Boolean
+
+    /**
+     * Returns true if two variables may be weak aliases, i.e. they point to the same
+     * location or are both null.
+     */
+
+    def mayBeWeakAliases(v1: Int, v2: Int): Boolean
+    /**
+     * Returns true if two variables must be weak aliases, i.e. they point to the same
+     * location or are both null.
+     */
+
+    def mustBeWeakAliases(v1: Int, v2: Int): Boolean
 
     /**
      * Returns the property after the successful completion of the test `v == null`
