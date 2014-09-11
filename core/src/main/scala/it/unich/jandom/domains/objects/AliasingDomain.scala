@@ -723,9 +723,15 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
           val newgraph = new Property(labels, edges, types updated (v, newtype))
           (newgraph, None, Map.empty)
         case Some(n) =>
-          val newspan = expandSpan(n, newtype)
-          val newgraph = new Property(labels, edges updated (n, newspan), types updated (v, newtype))
-          (newgraph, Some(n), newspan)
+          val nodeType = completeNodeType(n).get
+          if (om.lteq(nodeType, newtype) || om.lteq(newtype, nodeType)) {
+            val newspan = expandSpan(n, newtype)
+            val newgraph = new Property(labels, edges updated (n, newspan), types updated (v, newtype))
+            (newgraph, Some(n), newspan)  
+          } else {
+            (domain.bottom(types updated (v, newtype)), Some(n), fullSpan(newtype))
+          }
+          
       }
     }
 

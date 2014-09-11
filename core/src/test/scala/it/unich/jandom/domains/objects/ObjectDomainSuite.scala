@@ -201,10 +201,11 @@ trait ObjectDomainSuite extends CartesianFiberedDomainSuite with TableDrivenProp
         }
       }
     }
-    it("propagate possibly non-nullness") {
+    it("propagate possibly non-nullness if no cast error") {
       forAll(someCast) { (p, i, t) =>
         whenever(!p.mustBeNull(i)) {
-          assert(!p.castVariable(i, t).mustBeNull(i))
+          val res = p.castVariable(i, t)
+          assert(res.isBottom || (! res.mustBeNull(i)))
         }
       }
     }
