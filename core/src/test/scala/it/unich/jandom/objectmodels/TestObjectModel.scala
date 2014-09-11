@@ -55,18 +55,19 @@ object TestObjectModel extends TreeObjectModel with NoArrays {
     t1 == t2 || (t1 == tsub && t2 != tother && t2 != tprim) || (t2 == tsuper && t1 != tprim)     
     
   def declaredFields(t: Type) = t match {
-    case `tsuper` => Set()
-    case `tmiddle` => Set('a', 'b')
-    case `tsub` => Set('c')
-    case `tother` => Set('d')
+    case `tsuper` => Set('a','b')
+    case `tmiddle` => Set('c')
+    case `tsub` => Set('d')
+    case `tother` => Set('e')
     case `tprim` => Set()
   }
 
   def typeOf(f: Field) = f match {
-    case 'a' => tmiddle
-    case 'b' => tmiddle
-    case 'c' => tother
-    case 'd' => tmiddle
+    case 'a' => tsuper
+    case 'b' => tsuper
+    case 'c' => tmiddle
+    case 'd' => tsub
+    case 'e' => tmiddle
   }
 
   def isPrimitive(t: Type) = (t == tprim)

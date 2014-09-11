@@ -60,7 +60,7 @@ trait ALPsDomainSuiteParameters {
     val n0 = Node()
     val n1 = Node()
     val n2 = Node()
-    dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n0, 'c', Node()), (n1, 'b', n2)), om.tsub +: 3)
+    dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n0, 'c', Node()), (n0, 'd', Node()), (n1, 'b', n2)), om.tsub +: 3)
   }
   val g1d = {
     val n0 = Node()
