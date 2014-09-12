@@ -28,6 +28,7 @@ import soot._
 import soot.jimple.Constant
 import soot.jimple.StaticFieldRef
 import it.unich.jandom.domains.objects.ObjectDomain
+import it.unich.jandom.domains.objects.ObjectTypeEnvironment
 
 /**
  * An abstract frame for analysis of object properties. It depends on an analysis of class reachability
@@ -44,22 +45,28 @@ class SootFrameObjectDomain(val dom: ObjectDomain, classAnalysis: ClassReachable
 
   def bottom(vars: Seq[Type]) = buildProperty(dom.bottom(vars.size), List(vars.reverse: _*))
 
+  implicit class PSTYpeEnvironment(val stack: List[Type]) extends ObjectTypeEnvironment {
+    def numvars = stack.size
+
+    def mayShare(i: Int, j: Int) =
+      stack(stack.size - 1 - i) match {
+        case p1: RefType =>
+          stack(stack.size - 1 - j) match {
+            case p2: RefType => classAnalysis.mayShare(p1.getSootClass(), p2.getSootClass())
+            case _ => false
+          }
+        case _ => false
+    }
+
+    def mayNonLinear(i: Int) = true
+  }
+
   /**
    * Build a new object property, setting to null those variables which are not of reference
    * type and removing pairs  which cannot share due to class reachability analysis.
    */
   private def buildProperty(prop: dom.Property, stack: List[Type]): Property = {
-    val mayShare = { p: UP[Int] =>
-      stack(stack.size - 1 - p._1) match {
-        case p1: RefType =>
-          stack(stack.size - 1 - p._2) match {
-            case p2: RefType => classAnalysis.mayShare(p1.getSootClass(), p2.getSootClass())
-            case _ => false
-          }
-        case _ => false
-      }
-    }
-    val currprop = prop filter mayShare
+    val currprop = prop filter stack
     Property(currprop, stack, Map())
   }
 
@@ -146,10 +153,10 @@ class SootFrameObjectDomain(val dom: ObjectDomain, classAnalysis: ClassReachable
 
     def evalLength = addUntrackedVariable(IntType.v())
 
-    def evalField(l: Int, f: SootField) = addUntrackedVariable(f.getType()).assignFieldToListTop(l, f)
+    def evalField(l: Int, f: SootField) = addUntrackedVariable(f.getType()).assignFieldToStackTop(l, f)
 
-    private def assignFieldToListTop(src: Int, f: SootField) =
-      Property(prop.assignFieldToVariable(size - 1, src, f.getNumber(), mayShare), stack, globals)
+    private def assignFieldToStackTop(src: Int, f: SootField) =
+      Property(prop.assignFieldToVariable(size - 1, src, f.getNumber())(stack), stack, globals)
 
     def evalAdd = delUntrackedVariable
     def evalSub = delUntrackedVariable

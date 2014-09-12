@@ -20,6 +20,9 @@ package it.unich.jandom.domains.objects
 
 import it.unich.jandom.domains.DimensionFiberedDomain
 import it.unich.jandom.domains.DimensionFiberedProperty
+import it.unich.jandom.domains.TypedDomain
+import it.unich.jandom.domains.AbstractTypeEnvironment
+import it.unich.jandom.domains.AbstractTypeEnvironment
 
 /**
  * This trait represents the interface for a domain which handles objects and their relationship.
@@ -28,17 +31,17 @@ import it.unich.jandom.domains.DimensionFiberedProperty
  * @author Gianluca Amato <gamato@unich.it>
  *
  */
-trait ObjectDomain extends DimensionFiberedDomain {
+trait ObjectDomain extends DimensionFiberedDomain with TypedDomain {
 
   type Property <: ObjectProperty[Property]
+
+  type TypeEnvironment = ObjectTypeEnvironment
 
   /**
    * This trait is the interface for abstract elements in the object domain.
    */
-  trait ObjectProperty[P <: ObjectProperty[P]] extends DimensionFiberedProperty[P] {
+  trait ObjectProperty[P <: ObjectProperty[P]] extends DimensionFiberedProperty[P] with TypedProperty[P] {
     this: P =>
-
-    type ShareFilter = UP[Int] => Boolean
 
     /**
      * Add a new non-null variable which does not share with any other variable.
@@ -63,12 +66,12 @@ trait ObjectDomain extends DimensionFiberedDomain {
     /**
      * Corresponds to the assignment `dst = src.field`.
      */
-    def assignFieldToVariable(dst: Int, src: Int, field: Int, mayShare: ShareFilter = (_ => true)): P
+    def assignFieldToVariable(dst: Int, src: Int, field: Int)(implicit te: TypeEnvironment): P
 
     /**
      * Refine property according to the information provided by the ShareFilter.
      */
-    def filter(mayShare: ShareFilter): P
+    def filter(te: TypeEnvironment): P
 
     /**
      * Returns true if variable `v` is definitively null
@@ -84,6 +87,5 @@ trait ObjectDomain extends DimensionFiberedDomain {
      * Returns the property after the successful completion of the test `v != null`
      */
     def testNotNull(v: Int): P
-
   }
 }

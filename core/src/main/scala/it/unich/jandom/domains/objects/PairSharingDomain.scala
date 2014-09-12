@@ -32,6 +32,10 @@ object PairSharingDomain extends ObjectDomain {
 
   def bottom(dimension: Int) = new Property(Set(), dimension)
 
+  def top(te: TypeEnvironment) = top(te.numvars) filter te
+
+  def bottom(te: TypeEnvironment) = bottom(te.numvars)
+
   /**
    * Builds a pair sharing object from a set of pairs and a given `dimension`.
    * @param ps a set of unordered pairs, which are the pairs of variable which may possibly share
@@ -80,7 +84,7 @@ object PairSharingDomain extends ObjectDomain {
     ) yield UP(first, second)) ++ ps
 
   /**
-   * An object of pair sharing. Each object is composed of a set of unordered pair of variables (the variabls
+   * An object of pair sharing. Each object is composed of a set of unordered pair of variables (the variables
    * which may possibly share) and the dimension of the abstract property.
    * @param ps set of unordered pair of variables (the variables which may possibly share)
    * @param dimension the dimension of the abstract property
@@ -180,12 +184,12 @@ object PairSharingDomain extends ObjectDomain {
         new Property(removed ++ renameVariable(removed, dst, src) + UP(dst, src), dimension)
     }
 
-    def assignFieldToVariable(dst: Int, src: Int, field: Int, mayShare: ShareFilter) = {
+    def assignFieldToVariable(dst: Int, src: Int, field: Int)(implicit te: TypeEnvironment) = {
       if (isNull(src)) // src is null, hence accessing its field returns an error
         bottom
       else {
         val removed = removeVariable(ps, dst)
-        val renamed = renameVariable(removed, dst, src) filter mayShare
+        val renamed = renameVariable(removed, dst, src) filter { case UP(i,j) => te.mayShare(i,j) }
         new Property(removed ++ renamed + UP(dst, src), dimension)
       }
     }
@@ -196,7 +200,7 @@ object PairSharingDomain extends ObjectDomain {
       else
         new Property(joinThrough(joinThrough(ps + UP(dst, src), src), dst), dimension)
 
-    def filter(mayShare: ShareFilter) = new Property(ps filter mayShare, dimension)
+    def filter(te: TypeEnvironment) = new Property(ps filter { case UP(i,j) => te.mayShare(i,j) }, dimension)
 
     def isNull(v: Int) = !(ps contains UP(v, v))
 
