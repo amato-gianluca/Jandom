@@ -77,7 +77,7 @@ class PairSharingSuite extends FunSuite {
     val ps4 = dom(Set((0, 0), (0, 1), (1, 1), (2, 2)), 4)
     val ps5 = ps4.assignVariableToField(0, 1, ps4.dimension - 1).delVariable()
     assert(ps5 === dom(Set((0, 0), (0, 1), (1, 1), (2, 2)), 3))
-    assert(ps4.addFreshVariable(()).assignFieldToVariable(3, 2, 1) === ps4.addFreshVariable(()).assignVariable(3, 2))
+    assert(ps4.addFreshVariable(()).assignFieldToVariable(3, 2, ()) === ps4.addFreshVariable(()).assignVariable(3, 2))
   }
 
   test("Delete last variables") {
