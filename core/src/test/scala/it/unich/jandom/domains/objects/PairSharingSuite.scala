@@ -18,7 +18,6 @@
 
 package it.unich.jandom.domains.objects
 
-
 import org.scalatest.FunSuite
 import it.unich.jandom.objectmodels.ObjectModel
 import it.unich.jandom.objectmodels.NoArrays
@@ -70,12 +69,12 @@ class PairSharingSuite extends FunSuite {
 
   test("Operations on fields") {
     val ps1 = dom(Set((0, 0), (0, 1), (1, 1), (3, 3), (4, 4), (4, 5), (5, 5)), 6)
-    val ps2 = ps1.assignVariableToField(0, 1, ps1.dimension - 1).delVariable()
+    val ps2 = ps1.assignVariableToField(0, (), ps1.dimension - 1).delVariable()
     assert(ps2 === dom(Set((0, 0), (0, 1), (0, 4), (1, 1), (1, 4), (3, 3), (4, 4)), 5))
-    val ps3 = ps1.assignVariableToField(2, 1, ps1.dimension - 1)
+    val ps3 = ps1.assignVariableToField(2, (), ps1.dimension - 1)
     assert(ps3 === dom.bottom(6))
     val ps4 = dom(Set((0, 0), (0, 1), (1, 1), (2, 2)), 4)
-    val ps5 = ps4.assignVariableToField(0, 1, ps4.dimension - 1).delVariable()
+    val ps5 = ps4.assignVariableToField(0, (), ps4.dimension - 1).delVariable()
     assert(ps5 === dom(Set((0, 0), (0, 1), (1, 1), (2, 2)), 3))
     assert(ps4.addFreshVariable(()).assignFieldToVariable(3, 2, ()) === ps4.addFreshVariable(()).assignVariable(3, 2))
   }
@@ -120,25 +119,25 @@ class PairSharingSuite extends FunSuite {
   test("connectFull: connecting from first to second property") {
     val ps1 = dom(Set((0, 0), (0, 1), (1, 1), (1, 3), (3, 3)), 4)
     val ps2 = dom(Set((0, 1), (0, 0), (1, 1), (2, 2), (1, 3), (3, 3)), 4)
-    assert(ps1.connectFull(ps2, 2).ps contains (1, 5))
+    assert(ps1.connectFull(ps2, 2).ps contains ((1, 5)) )
   }
 
   test("connectFull: connecting two pairs from the first property trough a var") {
     val ps1 = dom(Set((0, 0), (1, 1), (2, 2), (0, 3), (1, 3), (2, 4), (3, 3), (4, 4)), 5)
     val ps2 = dom(Set((0, 0)), 4)
     val ps3 = ps1.connectFull(ps2, 2)
-    assert(ps3.ps contains (0, 1))
-    assert(!(ps3.ps contains (0, 2)))
-    assert(!(ps3.ps contains (1, 2)))
+    assert(ps3.ps contains ((0, 1)) )
+    assert(!(ps3.ps contains ((0, 2)) ))
+    assert(!(ps3.ps contains ((1, 2)) ))
   }
 
   test("connectFull: connecting two pairs from the first property trough a pair") {
     val ps1 = dom(Set((0, 0), (1, 1), (2, 2), (0, 3), (1, 3), (2, 4), (3, 3), (4, 4)), 5)
     val ps2 = dom(Set((0, 0), (0, 1), (1, 1)), 4)
     val ps3 = ps1.connectFull(ps2, 2)
-    assert(ps3.ps contains (0, 1))
-    assert(ps3.ps contains (0, 2))
-    assert(ps3.ps contains (1, 2))
+    assert(ps3.ps contains ((0, 1)) )
+    assert(ps3.ps contains ((0, 2)) )
+    assert(ps3.ps contains ((1, 2)) )
   }
 
   test("connectFull: complex example 1") {

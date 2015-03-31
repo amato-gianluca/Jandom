@@ -57,9 +57,7 @@ trait TypedDomain extends AbstractDomain {
    * @author Gianluca Amato <gamato@unich.it>
    *
    */
-  trait TypedProperty[Property <: TypedProperty[Property]] <: AbstractProperty[Property] {
+  trait TypedProperty[P <: TypedProperty[P]] <: AbstractProperty[P] {
 
   }
 }
-
-

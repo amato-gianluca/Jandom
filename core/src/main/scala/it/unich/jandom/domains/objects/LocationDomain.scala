@@ -25,30 +25,30 @@ import it.unich.jandom.objectmodels.ObjectModel
  * @author Gianluca Amato <gamato@unich.it>
  */
 trait LocationDomain[OM <: ObjectModel, Node] {
-  val om: OM   
- 
-  type Property <: LocationProperty[Property]    
-  
+  val om: OM
+
+  type Property <: LocationProperty[Property]
+
   def bottom(nodes: Iterable[Node]): Property
-  
+
   def top(node: Iterable[Node]): Property
-  
+
   def top(node: Iterable[(Node, om.Type)], withType: Boolean): Property
 
-  trait LocationProperty[Property <: LocationProperty[Property]]  {
-    def applyMorphism(m: Node => Option[Node]): Property
-    def applyMorphism(m: collection.Map[Node,Node]): Property
-    def union(that: Property): Property
-    def addFreshNodes(nodes: Iterable[Node]): Property
-    def addChildren(parent: Node, children: Iterable[Node]): Property
-    def delChildren(parent: Node, children: Set[Node]): Property
-    def delNodes(nodes: collection.Set[Node]): Property
+  trait LocationProperty[P <: LocationProperty[P]]  {
+    def applyMorphism(m: Node => Option[Node]): P
+    def applyMorphism(m: collection.Map[Node,Node]): P
+    def union(that: P): P
+    def addFreshNodes(nodes: Iterable[Node]): P
+    def addChildren(parent: Node, children: Iterable[Node]): P
+    def delChildren(parent: Node, children: Set[Node]): P
+    def delNodes(nodes: collection.Set[Node]): P
     /**
      * Only keeps nodes which satisy `p`
      */
-    def filterNodes(p: Node => Boolean): Property 
+    def filterNodes(p: Node => Boolean): P
     def mkString(nodeNames: Node => String): String
     def mayShare(n1: Node, n2: Node): Boolean
     def mayBeAliases(n1: Node, n2: Node): Boolean
-  } 
+  }
 }
