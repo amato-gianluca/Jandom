@@ -22,10 +22,10 @@ package it.unich.jandom.objectmodels
  * This is a trivial object model with a single non-primitive type, no fields and no arrays.
  * @author Gianluca Amato <gamato@unich.it>
  */
-object TrivialObjectModel extends TreeObjectModel with NoArrays {
+object TrivialObjectModel extends TreeObjectModel with NoArrays with ObjectModelHelper {
   self: ObjectModel =>
   type Type = Unit
-  type Field = Unit  
+  type Field = Unit
   def declaredFields(t: Type) = Set()
   def typeOf(f: Field) = {}
   def lteq(t1: Type, t2: Type) = true

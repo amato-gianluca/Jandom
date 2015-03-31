@@ -25,7 +25,7 @@ package it.unich.jandom.objectmodels
  * @author Gianluca Amato <gamato@unich.it>
  */
 
-object TestObjectModel extends TreeObjectModel with NoArrays {
+object TestObjectModel extends TreeObjectModel with NoArrays with ObjectModelHelper {
   type Type = AnyRef
   type Field = Char
 
@@ -52,8 +52,8 @@ object TestObjectModel extends TreeObjectModel with NoArrays {
   }
 
   def lteq(t1: Type, t2: Type) =
-    t1 == t2 || (t1 == tsub && t2 != tother && t2 != tprim) || (t2 == tsuper && t1 != tprim)     
-    
+    t1 == t2 || (t1 == tsub && t2 != tother && t2 != tprim) || (t2 == tsuper && t1 != tprim)
+
   def declaredFields(t: Type) = t match {
     case `tsuper` => Set('a','b')
     case `tmiddle` => Set('c')

@@ -26,12 +26,13 @@ import soot.{ Unit => SootUnit, _ }
 import scala.collection.mutable.Queue
 import soot.jandom.MyFastHierarchy
 import org.hamcrest.core.IsInstanceOf
+import it.unich.jandom.objectmodels.ObjectModelHelper
 
 /**
  * An object model for JVM using the Soot library.
  * @author Gianluca Amato <gamato@unich.it>
  */
-class SootObjectModel(scene: soot.Scene) extends ObjectModel {
+class SootObjectModel(scene: soot.Scene) extends ObjectModel with ObjectModelHelper {
 
   import scala.collection.JavaConversions._
 

@@ -22,6 +22,7 @@ import org.scalatest.FunSuite
 import it.unich.jandom.objectmodels.ObjectModel
 import it.unich.jandom.objectmodels.NoArrays
 import it.unich.jandom.objectmodels.TrivialObjectModel
+import it.unich.jandom.objectmodels.ObjectModelHelper
 
 /**
  * A test suite for PairSharing domain.
@@ -155,7 +156,7 @@ class PairSharingSuite extends FunSuite {
   }
 
   test("A non trivial object model") {
-    object NonTrivialModel extends ObjectModel with NoArrays {
+    object NonTrivialModel extends ObjectModel with NoArrays with ObjectModelHelper {
       type Type = Int
       type Field = Int
       def isPrimitive(t: Type) = false

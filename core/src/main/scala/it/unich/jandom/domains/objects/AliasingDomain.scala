@@ -18,10 +18,11 @@
 
 package it.unich.jandom.domains.objects
 
-import it.unich.jandom.utils.DisjointSets
 import scala.annotation._
 import scala.annotation.elidable._
+
 import it.unich.jandom.objectmodels.ObjectModel
+import it.unich.jandom.utils.DisjointSets
 
 /**
  * The domain for definite weak aliasing. Two identifiers are weak aliased if either they are
@@ -36,15 +37,15 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
   import AliasingDomain._
 
   /**
-   * A Span is a set of labeled edges departing from the same source node, 
-   * represented as a map from labels to target node. 
+   * A Span is a set of labeled edges departing from the same source node,
+   * represented as a map from labels to target node.
    */
-  private[objects]type Span = Map[om.Field, Node]
+  private[objects] type Span = Map[om.Field, Node]
 
   /**
    * An EdgeSet is a map from a node to its corresponding outer span.
    */
-  private[objects]type EdgeSet = Map[Node, Span]
+  private[objects] type EdgeSet = Map[Node, Span]
 
   /**
    * Returns a full span for a node of type `t`.
@@ -64,14 +65,14 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
 
   /**
    * Builds an aliasing graph with given labels, edges and, types. Edges are given in the form
-   * of an EdgeSet, and they are completed by turning undefined spans into empty spans. 
+   * of an EdgeSet, and they are completed by turning undefined spans into empty spans.
    */
   private[objects] def apply(labels: Seq[Option[Node]], partialEdgeSet: EdgeSet, types: Seq[om.Type]): Property = {
     val edgeSet: EdgeSet = (
       for (Some(l) <- labels.toSet) yield if (partialEdgeSet.isDefinedAt(l))
         l -> partialEdgeSet(l)
       else
-        l -> Map.empty[om.Field, Node] 
+        l -> Map.empty[om.Field, Node]
     )(collection.breakOut)
     new Property(labels, edgeSet, types)
   }
@@ -106,9 +107,9 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       for (Some(n) <- labels) { assume(edges.isDefinedAt(n), s"First level node ${n} has no corresponding span") }
       for (n <- edges.keys) { assume(labels contains Some(n), s"A span exists for node ${n} which is not first level in ${this}") }
       for (n <- nodes) { assume(completeNodeType(n).isDefined, s"Node ${n} has no defined type in ${this}") }
-      for (Some(n) <- labels.toSet; t = nodeType(n); (f, tgt) <- edges(n); fields = om.fields(t) ) { 
+      for (Some(n) <- labels.toSet; t = nodeType(n); (f, tgt) <- edges(n); fields = om.fields(t) ) {
         assume (fields contains f, s"node ${n} contains an invalid field ${f} in ${this}")
-      }  
+      }
     }
 
     /**
@@ -117,7 +118,7 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     private[objects] def isFirstLevel(n: Node): Boolean = {
       labels contains Some(n)
     }
-    
+
     /**
      * Returns the set of nodes reachable by 1^ level nodes in `nodes`.
      */
@@ -143,8 +144,8 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
      * @note This is more efficient that just resorting to reachableNodesFrom
      */
     private[objects] def reachableNodesForbidden(forbidden: Node): Set[Node] = {
-      assume(isFirstLevel(forbidden))      
-      val firstLevel: Set[Node] = (for (Some(n) <- labels; if n != forbidden) yield n) (collection.breakOut)     
+      assume(isFirstLevel(forbidden))
+      val firstLevel: Set[Node] = (for (Some(n) <- labels; if n != forbidden) yield n) (collection.breakOut)
       val secondLevel = (firstLevel flatMap { edges(_).values }) - forbidden
       firstLevel ++ secondLevel
     }
@@ -154,9 +155,9 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
      * @note This is more efficient that just resorting to reachableNodesFrom
      */
     private[objects] def nodes: Set[Node] = {
-      val firstLevel: Set[Node] = (for (Some(n) <- labels) yield n) (collection.breakOut)     
+      val firstLevel: Set[Node] = (for (Some(n) <- labels) yield n) (collection.breakOut)
       val secondLevel = (firstLevel flatMap { edges(_).values })
-      firstLevel ++ secondLevel      
+      firstLevel ++ secondLevel
     }
 
     /**
@@ -175,7 +176,7 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         (on, nt) <- labels zip types
         n <- on
         if om.fields(nt) contains field
-      } yield n)(collection.breakOut)      
+      } yield n)(collection.breakOut)
     }
 
     /**
@@ -210,9 +211,9 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         case Some(nnew) => nodeOf(nnew, fs.tail)
       }
     }
-       
+
     /**
-     * Returns the glb of all the types of variables pointing to 
+     * Returns the glb of all the types of variables pointing to
      * 'n`. We assume `n` is a 1^ level node
      */
     private[objects] def nodeType(n: Node): om.Type = {
@@ -264,7 +265,7 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         case on @ Some(n) => if (labels.count(_ == on) == 1) edges - n else edges
       }
     }
-        
+
     /**
      * Returns, if it exists, a morphism connecting `this` and `other`.
      * @param other the other graph, which should be on the same fiber of `this`
@@ -624,10 +625,10 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
       val escapeFromCommon = (labels zip types) exists { case (Some(n), t) => escape(n); case _ => false }
       val newlabels = labels.dropRight(common) ++ other.labels.drop(common)
       val newtypes = types.dropRight(common) ++ other.types.drop(common)
-      
+
       if (!escapeFromCommon) {
         val newedges = (edges ++ other.edges).filterKeys { newlabels contains Some(_) }
-        new Property(newlabels, newedges, newtypes)          
+        new Property(newlabels, newedges, newtypes)
       } else {
         // set of 1st level nodes reachable in the non-common part of this
         val reachableNodes: Set[Node] = (for (on <- labels; n <- on) yield n)(collection.breakOut)
@@ -727,11 +728,11 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
           if (om.lteq(nodeType, newtype) || om.lteq(newtype, nodeType)) {
             val newspan = expandSpan(n, newtype)
             val newgraph = new Property(labels, edges updated (n, newspan), types updated (v, newtype))
-            (newgraph, Some(n), newspan)  
+            (newgraph, Some(n), newspan)
           } else {
             (domain.bottom(types updated (v, newtype)), Some(n), fullSpan(newtype))
           }
-          
+
       }
     }
 
