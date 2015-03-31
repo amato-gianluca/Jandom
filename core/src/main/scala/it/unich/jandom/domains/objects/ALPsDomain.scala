@@ -44,7 +44,7 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
    * The ALPs domain directly implements aliasing and depends on `plug-ins` for all other
    * properties. At the moment, `psdom` is the plug-in for pair-sharing and cannot be changed.
    */
-  private[ALPsDomain] val psdom = new PairSharing[om.type, Node](om)	
+  private[ALPsDomain] val psdom = new PairSharing[om.type, Node](om)
 
   def top(types: Fiber) = {
     val g = aldom.top(types)
@@ -145,23 +145,24 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     def isEmpty: Boolean = false
 
     def fiber = g.types
-    
+
     def dimension = g.dimension
-    
+
     def addUnknownVariable(t: om.Type): Property = {
       new Property(g.addUnknownVariable(t), ps)
     }
 
     def addFreshVariable(t: om.Type): Property = {
-      val (newg, n, span) = g.addFreshVariableWithSpan(t)      
-      val freshps = psdom.top(Iterable(n) ++ span.values)
+      val newg = g.addFreshVariable(t)
+      val n = newg.labels.last.get
+      val freshps = psdom.top(Iterable(n) ++ newg.edges(n).values)
       new Property(newg, ps union freshps)
     }
 
     def addVariable(t: om.Type): Property = {
       addFreshVariable(t)
-    }    
-    
+    }
+
     def delVariable(v: Int): Property = {
       val (newEdges, newPs) = labels(v) match {
         case None => (edges, ps)
@@ -184,10 +185,10 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
         new Property(labels.take(v) ++ labels.drop(v + 1), newEdges withDefaultValue Map(), types.take(v) ++ types.drop(v + 1), newPs)
       // TODO: perhaps I should remove all unreachable nodes
     }
-    
+
     // BROKEN
-    def mapVariables(rho: Seq[Int]): Property = Property(g.mapVariables(rho), ps)       
-    
+    def mapVariables(rho: Seq[Int]): Property = Property(g.mapVariables(rho), ps)
+
     def top: Property = domain.top(fiber)
 
     def bottom: Property = domain.bottom(fiber)
@@ -197,72 +198,65 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     def isBottom: Boolean = labels forall { _.isEmpty }
 
     def connect(other: Property, common: Int): Property = {
-      // we check whether it is possible to reach the non-common variable in this from the common
-      // variables. Here sharing might help.
-      val escapeFromCommon = (labels zip types) exists { case (Some(n), t) => g.escape(n); case _ => false }
-      if (!escapeFromCommon) {
-        val nodes = g.reachableNodesFrom(labels.takeRight(common).flatten: _*)
-        new Property(
-          labels.dropRight(common) ++ other.labels.drop(common),
-          (edges ++ other.edges) withDefaultValue Map(),
-          types.dropRight(common) ++ other.types.drop(common), ps.delNodes(nodes))
-      } else {
-        // set of 1st level nodes reachable in the non-common part of this
-        val reachableNodes: Set[Node] = (for (on <- labels; n <- on) yield n)(collection.breakOut)
-        val newnodes = collection.mutable.Buffer[Node]()
-        val newedges =
-          for ((src, span) <- edges) yield src ->
-            (if (reachableNodes contains src) {
-              val fs = aldom.fullSpan(g.nodeType(src))
-              newnodes ++= fs.values
-              fs
-            } else
-              span)
-        new Property(
-          labels.dropRight(common) ++ other.labels.drop(common),
-          (newedges ++ other.edges) withDefaultValue Map(),
-          types.dropRight(common) ++ other.types.drop(common), ps addFreshNodes newnodes)
-      }
+      // set of 1st level nodes reachable in the non-common part of this
+      val reachableNodes: Set[Node] = (for (on <- labels; n <- on) yield n)(collection.breakOut)
+      val newnodes = collection.mutable.Buffer[Node]()
+      val newedges =
+        for ((src, span) <- edges) yield src ->
+          (if (reachableNodes contains src) {
+            val fs = aldom.fullSpan(g.nodeType(src))
+            newnodes ++= fs.values
+            fs
+          } else
+            span)
+      new Property(
+        labels.dropRight(common) ++ other.labels.drop(common),
+        (newedges ++ other.edges) withDefaultValue Map(),
+        types.dropRight(common) ++ other.types.drop(common), ps addFreshNodes newnodes)
     }
-        
+
     def mkString(vars: Seq[String]) = {
       val nodeNames = { (n: Node) => "n" + n }
       g.mkString(vars) + " // " + ps.mkString(nodeNames)
     }
-    
+
     // BROKEN
     def assignNull(dst: Int = dimension - 1): Property = {
       Property(g.assignNull(dst), ps)
     }
-    
+
     // BROKEN
     def assignVariable(dst: Int, src: Int): Property = {
-      Property(g.assignVariable(dst,src), ps)      
+      Property(g.assignVariable(dst, src), ps)
     }
 
     def assignVariableToField(dst: Int, field: om.Field, src: Int): Property = {
-       Property(g.assignVariableToField(dst, field, src), ps)
-    }     
+      Property(g.assignVariableToField(dst, field, src), ps)
+    }
 
     def assignFieldToVariable(dst: Int, src: Int, field: om.Field): Property = {
-       Property(g.assignFieldToVariable(dst, src, field), ps)
-    }      
+      Property(g.assignFieldToVariable(dst, src, field), ps)
+    }
 
     // Here I am assuming objects are only cast downwards
     def castVariable(v: Int, newtype: om.Type): Property = {
       assume(om.lteq(newtype, types(v)))
-      val (newgraph, n, newspan) = g.castVariableWithSpan(v, newtype)      
-      n match {
-        case None => 
+      val newgraph = g.castVariable(v, newtype)
+      newgraph.labels(v) match {
+        case None =>
           Property(newgraph, ps)
         case Some(n) =>
-          Property(newgraph, ps.addChildren(n, newspan.values))
+          Property(newgraph, ps.addChildren(n, newgraph.edges(n).values))
       }
     }
 
     def testNull(v: Int): Property = {
-      val (newgraph, nodes) = g.testNullWithNodes(v)
-      new Property(newgraph,  ps delNodes nodes)   
+      g.labels(v) match {
+        case None => this
+        case Some(nullnode) =>
+          val nodes = g.reachableNodesFrom(nullnode)
+          Property(g.restrictNot(nodes), ps delNodes (nodes))
+      }
     }
 
     def testNotNull(v: Int): Property = {

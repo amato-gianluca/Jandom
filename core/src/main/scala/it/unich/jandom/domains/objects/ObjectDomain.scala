@@ -36,7 +36,7 @@ trait ObjectDomain[+OM <: ObjectModel] extends CartesianFiberedDomain {
   type Property <: ObjectProperty[Property]
 
   /**
-   * The type of the fiber components corresponds to the type of the object model. 
+   * The type of the fiber components corresponds to the type of the object model.
    */
   type FiberComponent = om.Type
 

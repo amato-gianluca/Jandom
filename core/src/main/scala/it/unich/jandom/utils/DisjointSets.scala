@@ -29,9 +29,13 @@ trait DisjointSets[T] extends Growable[T] {
   /**
    * Join the disjoint-sets of which <code>elem1</code>
    * and <code>elem2</code> are members of. If <code>elem1</code>
-   * or <code>elem2</code> are not part of the disjoint sets, 
+   * or <code>elem2</code> are not part of the disjoint sets,
    * they are added before performing the union.
-   * @return the representative of the unioned set 
+   *
+   * We also require that, if union(elem1, elem2) is always called in such a way that
+   * elem1 enjoys property P, then the representative of all those elements which have been joined
+   * at least once has the property P.
+   * @return the representative of the joined sets
    */
   def union(elem1: T, elem2: T): T
 
@@ -47,17 +51,17 @@ trait DisjointSets[T] extends Growable[T] {
    * @throws NoSuchElementException if the element is not in any partition
    */
   def apply(elem: T): T
-  
+
   /**
    * Returns the number of disjoint-sets managed in this data structure.
    */
   def setCount: Int
-  
+
   /**
    * Returns the number of elements in the data-structure
    */
   def size: Int
-  
+
   /**
    * Returns whether two elements are in the same partition
    */
@@ -69,4 +73,5 @@ trait DisjointSets[T] extends Growable[T] {
  */
 object DisjointSets {
   def apply[T](initialElements: T*) = new DisjointSetsImpl[T](initialElements)
+  def empty[T] = new DisjointSetsImpl[T](Seq.empty)
 }

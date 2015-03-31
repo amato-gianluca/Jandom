@@ -38,104 +38,36 @@ trait AliasingDomainSuiteParameters {
 
   val bot4 = dom.bottom(4)
   val top4 = dom.top(4)
-  val g1 = {
-    val n0 = Node()
-    val n1 = Node()
-    val n2 = Node()
-    dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n1, 'b', n2)), 4)
-  }
-  val g1a = {
-    val n0 = Node()
-    val n1 = Node()
-    val n2 = Node()
-    dom(Seq(Some(n2), Some(n1), None, None), Seq((n1, 'b', n0), (n2, 'a', n0)), 4)
-  }
-  val g1b = {
-    val n0 = Node()
-    val n1 = Node()
-    val n2 = Node()
-    dom(Seq(Some(n0), Some(n1), Some(n2), None), Seq((n0, 'a', n2), (n1, 'b', n2)), 4)
-  }
-  val g1c = {
-    val n0 = Node()
-    val n1 = Node()
-    val n2 = Node()
-    dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n0, 'c', Node()), (n0, 'd', Node()), (n1, 'b', n2)), om.tsub +: 3)
-  }
-  val g1d = {
-    val n0 = Node()
-    val n1 = Node()
-    val n2 = Node()
-    val n3 = Node()
-    dom(Seq(Some(n0), Some(n1), Some(n1), None, Some(n3)), Seq((n0, 'a', n2), (n1, 'b', n2), (n3, 'a', Node()), (n3, 'b', Node())), 5)
-  }
-  val g1e = {
-    val n0 = Node()
-    val n1 = Node()
-    val n2 = Node()
-    dom(Seq(Some(n1), Some(n0), None), Seq((n0, 'a', n2), (n1, 'b', n2)), 3)
-  }
-  val g1f = {
-    val n0 = Node()
-    val n1 = Node()
-    val n2 = Node()
-    dom(Seq(Some(n0), Some(n1), None), Seq((n0, 'a', n2), (n1, 'b', n2)), 3)
-  }
-  val g1bb = {
-    dom(Seq(None, Some(Node()), None, None), Seq(), 4)
-  }
-  val g2 = {
-    val n0 = Node()
-    val n1 = Node()
-    val n2 = Node()
-    dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2)), 4)
-  }
-  val g3 = {
-    val n0 = Node()
-    val n1 = Node()
-    val n2 = Node()
-    val n3 = Node()
-    dom(Seq(Some(n2), Some(n1), Some(n1), Some(n3)), Seq((n2, 'a', n0), (n2, 'b', n3)), 4)
-  }
-  val g4 = {
-    val n0 = Node()
-    val n1 = Node()
-    val n2 = Node()
-    dom(Seq(Some(n0), Some(n1), Some(n1), Some(n0)), Seq((n0, 'a', n2), (n0, 'b', n2), (n1, 'b', n0)), 3 :+ om.tsub)
-  }
-  val g4b = {
-    val n0 = Node()
-    val n1 = Node()
-    val n2 = Node()
-    dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2)), 3 :+ om.tsub)
-  }
-  val g4union = {
-    val n0 = Node()
-    val n1 = Node()
-    val n2 = Node()
-    val n4 = Node()
-    dom(Seq(Some(n0), Some(n1), Some(n1), Some(n2)), Seq((n0, 'a', Node()), (n0, 'b', Node()), (n1, 'b', Node()),
-      (n2, 'a', n4), (n2, 'b', n4)), 3 :+ om.tsub)
-  }
-  val g4big = {
-    val n0 = Node()
-    val n1 = Node()
-    val n2 = Node()
-    dom(Seq(Some(n0), Some(n1), Some(n1), Some(n2)), Seq((n0, 'a', Node()), (n0, 'b', Node()), (n1, 'b', Node()),
-      (n2, 'a', Node()), (n2, 'b', Node())), 3 :+ om.tsub)
-  }
-  val g5 = {
-    val n0 = Node()
-    val n1 = Node()
-    dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', Node()), (n1, 'a', n1), (n1, 'b', Node())), 4)
-  }
-  val g5big = {
-    val n0 = Node()
-    val n1 = Node()
-    dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', Node()), (n1, 'a', Node()), (n1, 'b', Node())), 4)
-  }
+
+  val n0 = Node()
+  val n1 = Node()
+  val n2 = Node()
+  val n3 = Node()
+  val n4 = Node()
+
+  val g1 = dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n1, 'b', n2)), 4)
+  val g1noless = dom(Seq(None, Some(n1), Some(n1), None), Seq((n1, 'b', n2)), 4)
+  val g1a = dom(Seq(Some(n2), Some(n1), None, None), Seq((n1, 'b', n0), (n2, 'a', n0)), 4)
+  val g1b = dom(Seq(Some(n0), Some(n1), Some(n2), None), Seq((n0, 'a', n2), (n1, 'b', n2)), 4)
+  val g1c = dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2), (n0, 'c', Node()), (n0, 'd', Node()), (n1, 'b', n2)), om.tsub +: 3)
+  val g1d = dom(Seq(Some(n0), Some(n1), Some(n1), None, Some(n3)), Seq((n0, 'a', n2), (n1, 'b', n2), (n3, 'a', Node()), (n3, 'b', Node())), 5)
+  val g1e = dom(Seq(Some(n1), Some(n0), None), Seq((n0, 'a', n2), (n1, 'b', n2)), 3)
+  val g1f = dom(Seq(Some(n0), Some(n1), None), Seq((n0, 'a', n2), (n1, 'b', n2)), 3)
+  val g1bb = dom(Seq(None, Some(Node()), None, None), Seq(), 4)
+  val g2 = dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2)), 4)
+  val g3 = dom(Seq(Some(n2), Some(n1), Some(n1), Some(n3)), Seq((n2, 'a', n0), (n2, 'b', n3)), 4)
+  val g4 = dom(Seq(Some(n0), Some(n1), Some(n1), Some(n0)), Seq((n0, 'a', n2), (n0, 'b', n2), (n1, 'b', n0)), 3 :+ om.tsub)
+  val g4b = dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', n2)), 3 :+ om.tsub)
+  val g4union = dom(Seq(Some(n0), Some(n1), Some(n1), Some(n2)), Seq((n0, 'a', Node()), (n0, 'b', n4), (n1, 'b', n2),
+    (n2, 'a', n4), (n2, 'b', n4)), 3 :+ om.tsub)
+  val g4big = dom(Seq(Some(n0), Some(n1), Some(n1), Some(n2)), Seq((n0, 'a', Node()), (n0, 'b', Node()), (n1, 'b', Node()),
+    (n2, 'a', Node()), (n2, 'b', Node())), 3 :+ om.tsub)
+  val g5 = dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', Node()), (n1, 'a', n1), (n1, 'b', Node())), 4)
+  val g5big = dom(Seq(Some(n0), Some(n1), Some(n1), None), Seq((n0, 'a', Node()), (n1, 'a', Node()), (n1, 'b', Node())), 4)
 
   val someProperties = Table("property", g1, g2, g3, g4, g5, /*g1 union g5*,*/ bot4, top4, g1a, g1b, g1c, g1d, g1e, g1f, g1bb)
+  val isFirstLevel = Table(("property", "node", "1st-level"), (g1, n0, true), (g1, n1, true), (g1, n2, false), (g1a, n2, true))
+  val reachableNodesFrom = Table(("property", "nodes", "reachables"), (g1, Seq(n0), Set(n0, n2)), (g1, Seq(n0,n1), Set(n0,n1,n2)))
 }
 
 /**
@@ -148,8 +80,8 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
   with PreciseObjectDomain with PreciseDefiniteWeakAliasing {
 
   import AliasingDomain._
-  
-  def ALPsMorphism(g1: dom.Property, g2: dom.Property, m: Morphism) {
+
+  def AliasingMorphism(g1: dom.Property, g2: dom.Property, m: Morphism) {
     it("preserve labels") {
       for (i <- 0 until g1.dimension) {
         assert((g1.labels(i) flatMap m) === g2.labels(i))
@@ -164,17 +96,43 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
     val top = g.top
     describe("has a morphism to bottom which") {
       val Some((1, m)) = g.tryMorphism(bottom)
-      it should behave like ALPsMorphism(g, bottom, m)
+      it should behave like AliasingMorphism(g, bottom, m)
     }
     describe("has a morphism from top which") {
       val Some((-1, m)) = g.tryMorphism(top)
-      it should behave like ALPsMorphism(top, g, m)
+      it should behave like AliasingMorphism(top, g, m)
     }
     it should behave like nonExtremalProperty(g)
   }
 
-  describe("The bottom ALPs graph") {
-    
+  describe("The isFirstLevel method") {
+    it("determines whether a node is 1st level") {
+      forAll(isFirstLevel) { (prop, node, firstlevel) =>
+        assertResult(firstlevel)(prop.isFirstLevel(node))
+      }
+    }
+    it("returns correct results") {
+      forAll(someProperties) { (prop) =>
+        for (n <- prop.nodes; if prop.isFirstLevel(n)) assert(prop.labels.contains(Some(n)))
+      }
+    }
+  }
+
+  describe("The reachableNodesFrom") {
+    it("determines the of nodes reachable from a given first level node") {
+      forAll(reachableNodesFrom) { (prop, nodes, reachable) =>
+        assertResult(reachable)(prop.reachableNodesFrom(nodes :_*))
+      }
+    }
+    it("always contains the starting node") {
+      forAll(someProperties) { (prop) =>
+        for (n <- prop.nodes; if prop.isFirstLevel(n)) assert(prop.reachableNodesFrom(n) contains n)
+      }
+    }
+  }
+
+  describe("The bottom aliasing graph") {
+
     it("has all reachable identifiers labeled by null") {
       forAll(someFibersAndVars) { (fiber, i) =>
         val bot = dom.bottom(fiber)
@@ -212,7 +170,7 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
     }
   }
 
-  describe("The top ALPs graph") {    
+  describe("The top aliasing graph") {
     it("has all reachable identifiers mapped to a node") {
       forAll(someFibersAndVars) { (fiber, i) =>
         val top = dom.top(fiber)
@@ -237,6 +195,7 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
   describe("The graph g1") {
     it should behave like nonExtremalGraph(g1)
     it("has dimension 4") { assert(g1.dimension === 4) }
+    it("is not comparable with g1noless") { assert(g1.tryCompareTo(g1noless).isEmpty) }
     it("is not comparable with g2") { assert(g1.tryCompareTo(g2).isEmpty) }
     it("is not comparable with g3") { assert(g1.tryCompareTo(g3).isEmpty) }
   }
@@ -248,7 +207,7 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
     it("is smaller than g3") { assert(g2 < g3) }
     describe("has a morphism from g3 which") {
       val Some((-1, m)) = g2.tryMorphism(g3)
-      it should behave like ALPsMorphism(g3, g2, m)
+      it should behave like AliasingMorphism(g3, g2, m)
     }
   }
 
@@ -352,7 +311,8 @@ class AliasingDomainSuite extends FunSpec with AliasingDomainSuiteParameters wit
       val n2 = Node()
       val g1 = dom(Seq(Some(n0), Some(n0), Some(n1)), Seq(), 3)
       val g2 = dom(Seq(Some(n2)), Seq(), 1)
-      assert(g1.connect(g2, 1) === g1.delVariable(2))
+      val g3 = dom(Seq(Some(n0), Some(n0)), Seq ((n0, 'a', Node()),(n0,'b',Node())), 2)
+      assert(g1.connect(g2, 1) === g3)
     }
     it("passes test2") {
       val n0 = Node()
