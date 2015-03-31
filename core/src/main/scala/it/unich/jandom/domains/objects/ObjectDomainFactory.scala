@@ -21,8 +21,7 @@ package it.unich.jandom.domains.objects
 import it.unich.jandom.objectmodels.ObjectModel
 
 /**
- * A factory for objects domain, i.e. domains which takes an object model
- * as an input.
+ * A factory for object domains, i.e. domains which takes an object model as an input.
  * @author Gianluca Amato <gamato@unich.it>
  */
 trait ObjectDomainFactory {

@@ -25,7 +25,7 @@ import scala.annotation.tailrec
  * It also encapsulated differences on the low level libraries used to interpret
  * programs (such as Soot vs ASM vs ..). This trait has some abstract methods which
  * should be implemented in concrete classes, and some concrete methods which computes
- * a lor of relevant information on the object models. Concrete methods are not
+ * a lot of relevant information on the object models. Concrete methods are not
  * particularly fast at the moment, since correctness and readability has been
  * favored rather than performance.
  * @todo make the concrete methods faster
@@ -180,12 +180,12 @@ trait ObjectModel {
   /**
    * Returns an upper crown for a collection of types. An upper crown of `ts` is set `crown` subset of
    * `ts` such that each element in `ts` has an upper bound in `crown`.
-   */  
+   */
   def upperCrown(ts: Iterable[Type]): Set[Type] =  {
-    
-    @tailrec    
+
+    @tailrec
     def upperCrownHelper(ts: Iterable[Type], acc: Set[Type]): Set[Type] = {
-      if (ts.isEmpty) 
+      if (ts.isEmpty)
         acc
       else {
         val newt = ts.head
@@ -196,12 +196,12 @@ trait ObjectModel {
           if ((! lteq(t,newt)) || t == newt) newacc += t
         }
         if (toAdd) newacc += newt
-        upperCrownHelper(ts.tail, newacc.toSet)           
-      }         
+        upperCrownHelper(ts.tail, newacc.toSet)
+      }
     }
     upperCrownHelper(ts, Set())
   }
-  
+
   /**
    * Returns an approximation of the glb of types `t1` and `t2`. The result
    * is guaranteed to be the most specialized type which is a super-type of all
@@ -226,7 +226,7 @@ trait ObjectModel {
 
   /**
    * An unary glbApprox such that `glbApprox(t)` is equivalent to `glbApprox(t,t)`. It is
-   * only used in tests and for this reason is marked private. 
+   * only used in tests and for this reason is marked private.
    */
   private[objectmodels] def glbApprox(t: Type): Option[Type] = {
     var subs = Set(t)
@@ -242,7 +242,7 @@ trait ObjectModel {
   }
 
   /**
-   * Returns the glb approximation of a sequence of types. It is  computed by iterating the 
+   * Returns the glb approximation of a sequence of types. It is  computed by iterating the
    * binary glbApprox, but may be overriden for performance reasons.
    */
   def glbApprox(ts: Iterable[Type]): Option[Type] = {
