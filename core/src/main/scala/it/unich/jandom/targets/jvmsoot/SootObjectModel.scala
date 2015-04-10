@@ -19,17 +19,13 @@
 package it.unich.jandom.targets.jvmsoot
 
 import it.unich.jandom.objectmodels.ObjectModel
-import scala.collection.mutable
-import soot.util.Chain
-import soot.util.HashChain
-import soot.{ Unit => SootUnit, _ }
-import scala.collection.mutable.Queue
-import soot.jandom.MyFastHierarchy
-import org.hamcrest.core.IsInstanceOf
 import it.unich.jandom.objectmodels.ObjectModelHelper
 
+import soot._
+import soot.jandom.MyFastHierarchy
+
 /**
- * An object model for JVM using the Soot library.
+ * An object model for the JVM using the Soot library.
  * @author Gianluca Amato <gamato@unich.it>
  */
 class SootObjectModel(scene: soot.Scene) extends ObjectModel with ObjectModelHelper {
@@ -68,11 +64,24 @@ class SootObjectModel(scene: soot.Scene) extends ObjectModel with ObjectModelHel
     case _: ArrayType => true
   }
 
-  /**
-   * @inheritdoc
-   * For the moment, we consider primitive types to be incomparable, but I do not know
-   * if it is the correct way to handle this.
+  def isArray(t: Type) = t.isInstanceOf[ArrayType]
+
+  def elementType(t: Type) = t match {
+    case t: ArrayType => Some(t.baseType)
+    case _ => None
+  }
+
+ /**
+   * Returns whether a type is an interface.
    */
+  def isInterface(t: Type) =
+    t.isInstanceOf[RefType] && t.asInstanceOf[RefType].getSootClass().isInterface()
+
+  /**
+    * @inheritdoc
+    * For the moment, we consider primitive types to be incomparable, but I do not know
+    * if it is the correct way to handle this.
+    */
   def lteq(t1: Type, t2: Type) = fh.canStoreType(t1, t2)
 
   def parents(t: Type) = t match {
@@ -102,25 +111,12 @@ class SootObjectModel(scene: soot.Scene) extends ObjectModel with ObjectModelHel
     case t: ArrayType => children(t.baseType) map { (ArrayType.v(_, t.numDimensions)) }
   }
 
-  def isArray(t: Type) = t.isInstanceOf[ArrayType]
-
-  def getElementType(t: Type) = t match {
-    case t: ArrayType => Some(t.baseType)
-    case _ => None
-  }
-
   /**
-   * Returns whether a type is an interface.
-   */
-  def isInterface(t: Type) =
-    t.isInstanceOf[RefType] && t.asInstanceOf[RefType].getSootClass().isInterface()
-
-  /**
-   * This is a fast approximation of glbApprox which do not consider concretizability
+   * This is a fast approximation of concreteApprox which do not consider concretizability
    * of a type and makes all interfaces equivalent to the Object type. It should be always
    * a super-type of glbApprox. Moreover, if it is undefined, glbApprox should be undefined too.
    */
-  def glbApproxFast(t1: Type, t2: Type): Option[Type] = {
+  def concreteApproxFast(t1: Type, t2: Type): Option[Type] = {
     val tt1 = if (isInterface(t1))
       scene.getObjectType()
     else t1

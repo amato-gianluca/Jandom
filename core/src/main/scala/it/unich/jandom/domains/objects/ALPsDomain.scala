@@ -170,7 +170,7 @@ class ALPsDomain[+OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
           val reachable = g.reachableNodesForbidden(n)
           if (reachable contains n) {
             val newNodeTypes = for ((Some(`n`), i) <- labels.zipWithIndex) yield types(i)
-            val newType = om.glbApprox(newNodeTypes).get
+            val newType = om.concreteApprox(newNodeTypes).get
             val (newSpan, detached) = g.reduceSpan(n, newType)
             val removeFromPs = detached filterNot { reachable contains _ }
             val newPs = ps.delChildren(n, removeFromPs.toSet)

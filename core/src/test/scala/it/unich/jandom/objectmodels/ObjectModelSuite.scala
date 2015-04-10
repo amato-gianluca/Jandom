@@ -19,14 +19,15 @@
 package it.unich.jandom.objectmodels
 
 import org.scalatest._
+import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatest.prop.TableFor1
 
 /**
  * This is a trait for test suites of object models.
  * @author Gianluca Amato <gamato@unich.it>
  * @todo Add a generator for paths
  */
-trait ObjectModelSuite {
-  this: FunSpec =>
+trait ObjectModelSuite extends FunSpec with  TableDrivenPropertyChecks  {
 
   /**
    * The object model we want to test
@@ -38,7 +39,7 @@ trait ObjectModelSuite {
   /**
    * All types we want to check
    */
-  val someTypes: Seq[Type]
+  val someTypes: TableFor1[Type]
 
   describe("The declared fields of a type") {
     they("are disjoint for different types") {
@@ -137,6 +138,9 @@ trait ObjectModelSuite {
       for (t1 <- someTypes; t2 <- someTypes; if lteq(t1, t2))
         assert(fields(t2) subsetOf fields(t1))
     }
+    they("contain the decleated fields of the same type") {
+      for (t <- someTypes) assert(declaredFields(t) subsetOf fields(t))
+    }
   }
 
   describe("The concretizability of a type") {
@@ -144,23 +148,26 @@ trait ObjectModelSuite {
       for { t1 <- someTypes; t2 <- someTypes; if isConcretizable(t1) && lteq(t1, t2) }
         assert(isConcretizable(t2), s"${t1} may be instantiated but ${t2} cannot")
     }
+    it("is always true for concrete types") {
+      for (t <- someTypes; if isConcrete(t)) assert(isConcretizable(t))
+    }
   }
 
   describe("The needed fields of a type") {
     they("are empty on non concretizable types") {
       for { t <- someTypes; if !isConcretizable(t) } {
-        assert(neededFieldsOf(t).isEmpty)
+        assert(neededFields(t).isEmpty)
       }
     }
-    they("contain then field of a type if the type is concretizable") {
+    they("contain the fields of the type if the type is concretizable") {
       for { t <- someTypes; if isConcretizable(t) } {
-        assert(fields(t) subsetOf neededFieldsOf(t))
+        assert(fields(t) subsetOf neededFields(t))
       }
     }
     they("are anti-monotone w.r.t. subtype relationship for concretizable types") {
       for { t1 <- someTypes; t2 <- someTypes; if lteq(t1, t2) && isConcretizable(t1) } {
-        val fields1 = neededFieldsOf(t1)
-        val fields2 = neededFieldsOf(t2)
+        val fields1 = neededFields(t1)
+        val fields2 = neededFields(t2)
         assert(fields2 subsetOf fields1, s"${fields2} is not a subset of ${fields1}")
       }
     }
@@ -169,18 +176,18 @@ trait ObjectModelSuite {
   describe("The possible fields of a type") {
     they("are empty on non concretizable types") {
       for { t <- someTypes; if !isConcretizable(t) } {
-        assert(possibleFieldsOf(t).isEmpty)
+        assert(possibleFields(t).isEmpty)
       }
     }
     they("are a superset of the needed fields") {
       for { t <- someTypes } {
-        assert(neededFieldsOf(t) subsetOf possibleFieldsOf(t))
+        assert(neededFields(t) subsetOf possibleFields(t))
       }
     }
     they("are monotone w.r.t. subtype relationship") {
       for { t1 <- someTypes; t2 <- someTypes; if lteq(t1, t2) } {
-        val fields1 = possibleFieldsOf(t1)
-        val fields2 = possibleFieldsOf(t2)
+        val fields1 = possibleFields(t1)
+        val fields2 = possibleFields(t2)
         assert(fields1 subsetOf fields2, s"${fields1} is not a subset of ${fields2}")
       }
     }
@@ -193,41 +200,26 @@ trait ObjectModelSuite {
     }
     it("is transitive") {
       for (t1 <- someTypes; t2 <- someTypes; t3 <- someTypes) {
-        if (reachable(t1, t2) && reachable(t2, t3)) {
-          assert(reachable(t1, t3), s"${t1} may reach ${t2} which may reach ${t3}, but ${t1} cannot reach ${t3}")
+        if (isReachable(t1, t2) && isReachable(t2, t3)) {
+          assert(isReachable(t1, t3), s"${t1} may reach ${t2} which may reach ${t3}, but ${t1} cannot reach ${t3}")
         }
       }
     }
     it("is downward closed on the target") {
       for (t1 <- someTypes; t2 <- someTypes; t3 <- someTypes) {
-        if (reachable(t1, t2) && lteq(t3, t2)) {
-          assert(reachable(t1, t3))
+        if (isReachable(t1, t2) && lteq(t3, t2)) {
+          assert(isReachable(t1, t3))
         }
       }
     }
     it("is upward closed on the source") {
       for (t1 <- someTypes; t2 <- someTypes; t3 <- someTypes) {
-        if (reachable(t1, t2) && lteq(t1, t3)) {
-          assert(reachable(t3, t2))
+        if (isReachable(t1, t2) && lteq(t1, t3)) {
+          assert(isReachable(t3, t2))
         }
       }
     }
   }
-
-  /*------------------------------------------------------------------------------
-    These are tests for glb, which is not a method of ObjectModel anymore.
-   
-     describe("The binary glb operator") {
-       it("is a lower bound when defined") {
-         forAll { (t1: Type, t2: Type) =>
-          val glb = glbApprox(t1, t2)
-          if (glb.isDefined) {
-            assert(lteq(glb.get, t1), s"${glb.get} is not subtype of ${t1}")
-            assert(lteq(glb.get, t2), s"${glb.get} is not subtype of ${t2}")
-          }
-        }      
-      }   
-   --------------------------------------------------------------------------------*/
 
   describe("The upper crown operator") {
     it("returns empty set for empty sequences") {
@@ -254,17 +246,17 @@ trait ObjectModelSuite {
           assert(!lteq(ta, tb) && !lteq(tb, ta), s"ta = ${ta} and tb = ${tb}")
       }
     }
-    it("is equal to the (private) unary glbApprox when the two arguments are equal") {
+    it("is equal to the concreteApprox when the two arguments are equal") {
       for (t <- someTypes) {
-        assert(glbApprox(t) === glbApprox(t, t), s"for t = ${t}")
+        assert(concreteApprox(t) === concreteApprox(t, t), s"for t = ${t}")
       }
     }
   }
 
-  describe("The binary glbApprox operator") {
+  describe("The binary concreteApprox operator") {
     it("is idempotent on concrete type, reductive on concretizable types, empty on non concretizables") {
       for (t <- someTypes) {
-        val glb = glbApprox(t, t)
+        val glb = concreteApprox(t, t)
         if (isConcrete(t)) {
           assert(glb.isDefined)
           assert(glb.get === t)
@@ -278,22 +270,22 @@ trait ObjectModelSuite {
     }
     it("is bigger than all other concrete lower bounds") {
       for (t1 <- someTypes; t2 <- someTypes; t3 <- someTypes; if lteq(t3, t1) && lteq(t3, t2) && isConcrete(t3)) {
-        val glb = glbApprox(t1, t2)
+        val glb = concreteApprox(t1, t2)
         assert(glb.isDefined)
         assert(lteq(t3, glb.get))
       }
     }
     it("returns a concretizable type") {
-      for (t1 <- someTypes; t2 <- someTypes; glb = glbApprox(t1, t2); if glb.isDefined) {
+      for (t1 <- someTypes; t2 <- someTypes; glb = concreteApprox(t1, t2); if glb.isDefined) {
         assert(isConcretizable(glb.get))
       }
     }
   }
 
-  describe("The getElementType method") {
+  describe("The elementType method") {
     it("returns a type for arrays") {
       for (t <- someTypes; if (isArray(t)))
-        assert(getElementType(t).isDefined)
+        assert(elementType(t).isDefined)
     }
   }
 
@@ -302,26 +294,34 @@ trait ObjectModelSuite {
       for (t <- someTypes)
         assert(pathExists(t))
     }
+    it("returns true for  qualified identifiers") {
+      for (t <- someTypes; f <- fields(t))
+        assert(pathExists(t,f))
+    }
+     it("returns false for non-valid qualified identifiers") {
+      for (t <- someTypes; t2 <- someTypes; if !lteq(t,t2);  f <- declaredFields(t2))
+        assert(!pathExists(t,f))
+    }
   }
 
-  describe("The glbApprox of a sequence of types") {
+  describe("The concreteApprox of a sequence of types") {
     it("is undefined for empty sequences") {
-      assert(glbApprox(Seq()).isEmpty)
+      assert(concreteApprox(Seq()).isEmpty)
     }
-    it("is equivalent to binary glbApprox with two argument equals for length one sequences") {
+    it("is equivalent to binary concreteApprox with two argument equals for length one sequences") {
       for (t <- someTypes) {
-        assert(glbApprox(Seq(t)) === glbApprox(t, t))
+        assert(concreteApprox(Seq(t)) === concreteApprox(t, t))
       }
     }
-    it("is equal to the binary glbApprox for length two sequences") {
+    it("is equal to the binary concreteApprox for length two sequences") {
       for (t1 <- someTypes; t2 <- someTypes) {
-        assert(glbApprox(Seq(t1, t2)) === glbApprox(t1, t2))
+        assert(concreteApprox(Seq(t1, t2)) === concreteApprox(t1, t2))
       }
     }
     it("may be obtained by iterating the binary glb operator") {
       for (t1 <- someTypes; t2 <- someTypes; t3 <- someTypes) {
         val ts = Seq(t1, t2, t3)
-        assert(glbApprox(ts) === (glbApprox(t2, t3) flatMap { glbApprox(t1, _) }), s"for glb of ${t1}, ${t2} and ${t3}")
+        assert(concreteApprox(ts) === (concreteApprox(t2, t3) flatMap { concreteApprox(t1, _) }), s"for glb of ${t1}, ${t2} and ${t3}")
       }
     }
   }
@@ -335,9 +335,9 @@ trait ObjectModelSuite {
       for (t1 <- someTypes; t2 <- someTypes)
         assert(mayBeAliases(t1, t2) === mayBeAliases(t2, t1))
     }
-    it("corresponds to having a defined glbApprox and being non-primitive") {
+    it("corresponds to having a defined concreteApprox and being non-primitive") {
       for (t1 <- someTypes; t2 <- someTypes) {
-        val aliasable = glbApprox(t1, t2).isDefined && !isPrimitive(t1) && !isPrimitive(t2)
+        val aliasable = concreteApprox(t1, t2).isDefined && !isPrimitive(t1) && !isPrimitive(t2)
         assert(mayBeAliases(t1, t2) === aliasable)
       }
     }

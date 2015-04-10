@@ -55,18 +55,18 @@ trait ObjectModel {
   def fields(t: Type): Set[Field]
 
   /**
-   * Returns the set of all fields which an object of declared type `t` must have.
+   * Returns the set of all fields which an object of declared type `t` must necessarily have.
    */
-  def neededFieldsOf(t: Type): Set[Field]
+  def neededFields(t: Type): Set[Field]
 
   /**
    * Returns the set of all fields which an object of declared type `t` might possibly have.
    */
-  def possibleFieldsOf(t: Type): Set[Field]
+  def possibleFields(t: Type): Set[Field]
 
   /**
-   * Returns whether a type `t` is primitive. A primitive object is not memorized
-   * on the heap, hence cannot be aliased.
+   * Returns whether a type `t` is primitive. A primitive object is not memorized on the heap,
+   * hence cannot be aliased.
    */
   def isPrimitive(t: Type): Boolean
 
@@ -77,20 +77,20 @@ trait ObjectModel {
   def isConcrete(t: Type): Boolean
 
   /**
+   * Returns whether some subtype of t is concrete.
+   */
+  def isConcretizable(t: Type): Boolean
+
+  /**
    * Returns whether a type `t` is an array. Array types are particular types which may be indexed with
    * natural numbers and return elements of a given type. No other assumption is made.
    */
   def isArray(t: Type): Boolean
 
   /**
-   * Returns whether some subtype of t is concrete.
-   */
-  def isConcretizable(t: Type): Boolean
-
-  /**
    * Returns the element type of the array `t`, or `None` if `t` is not an array type.
    */
-  def getElementType(t: Type): Option[Type]
+  def elementType(t: Type): Option[Type]
 
   /**
    * Returns the parents of a given type
@@ -113,7 +113,7 @@ trait ObjectModel {
   def descendants(t: Type): Set[Type]
 
   /**
-   * Returns an upper crown for a collection of types. An upper crown of `ts` is set `crown` subset of
+   * Returns an upper crown for a collection of types. An upper crown of `ts` is a set `crown` subset of
    * `ts` such that each element in `ts` has an upper bound in `crown`.
    */
   def upperCrown(ts: Iterable[Type]): Set[Type]
@@ -125,25 +125,24 @@ trait ObjectModel {
   def lteq(t1: Type, t2: Type): Boolean
 
   /**
-   * An unary glbApprox such that `glbApprox(t)` is equivalent to `glbApprox(t,t)`. It is
-   * only used in tests and for this reason is marked private.
+   * Returns an upper approximation of all the concrete types which are subtypes of both
+   * `t1` and `t2`. When the result is `None`, then `t1` and `t2` have no common concrete
+   * subtype.
    */
-  def glbApprox(t: Type): Option[Type]
+  def concreteApprox(t1: Type, t2: Type): Option[Type]
 
   /**
-   * Returns an approximation of the glb of types `t1` and `t2`. The result
-   * is guaranteed to be the most specialized type which is a super-type of all
-   * concrete lower bounds of `t1` and `t2`. The result is None iff `t1` and `t2`
-   * have no concrete lower bounds.
-   * @todo we should prove it works, I am not entirely sure
+   * Returns an upper approximation of all the concrete types which are subtypes of all
+   * the elements of `ts`. When the result is `None`, the types in `ts` have no common concrete
+   * subtype.
    */
-  def glbApprox(t1: Type, t2: Type): Option[Type]
+  def concreteApprox(ts: Iterable[Type]): Option[Type]
 
   /**
-   * Returns the glb approximation of a sequence of types. It is  computed by iterating the
-   * binary glbApprox, but may be overriden for performance reasons.
+   * Returns an upper approximation of all the concrete subtypes of type `t`. When the result is `None`,
+   * then `t` has no concrete subtype.
    */
-  def glbApprox(ts: Iterable[Type]): Option[Type]
+  def concreteApprox(t: Type): Option[Type]
 
   /**
    * Determines whether the sequence of fields `fs`, starting from an object of
@@ -153,17 +152,15 @@ trait ObjectModel {
 
   /**
    * Determines an upper crown of the types reachable from a variable of declared type `t`.
-   * It uses memoization to speed up subsequent calls. A type `t2` is reachable
-   * from `t` if there is a path that start from an object of declared type `t` and ends
+   * A type `t2` is reachable from `t` if there is a path that start from an object of declared type `t` and ends
    * in an object of declared type `t2`.
    */
   def reachablesFrom(t: Type): Set[Type]
 
   /**
-   * Determines whether the type `tgt` is reachable from `src`. `tgt` may be
-   * not concretizable.
+   * Determines whether the type `tgt` is reachable from `src`.
    */
-  def reachable(src: Type, tgt: Type): Boolean
+  def isReachable(src: Type, tgt: Type): Boolean
 
   /**
    * Returns true if two variables of type `t1` and `t2` may be aliases. Two variable are

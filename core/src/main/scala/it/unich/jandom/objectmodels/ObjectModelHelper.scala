@@ -23,7 +23,8 @@ import scala.annotation.tailrec
 /**
  * This trait defines concrete methods which may be used to implement an object model. It is not
  * particularly fast at the moment, since correctness and readability has been favored rather than
- * performance.
+ * performance. However, memoization is used to improve performance in some particularly lengthy
+ * computations.
  * @todo make the methods faster
  */
 trait ObjectModelHelper {
@@ -40,12 +41,11 @@ trait ObjectModelHelper {
   private val reachable = collection.mutable.HashMap[Type, Set[Type]]()
 
   /**
-   * A mutable HashMap used for memoizing glbs
+   * A mutable HashMap used for memoizing concreteApproximations
    */
   private val glb = collection.mutable.HashMap[(Type, Type), Option[Type]]()
 
-  @tailrec
-  final def pathExists(t: Type, fs: Field*): Boolean = {
+  def pathExists(t: Type, fs: Field*): Boolean = {
     if (fs.isEmpty)
       true
     else {
@@ -54,13 +54,21 @@ trait ObjectModelHelper {
     }
   }
 
-  protected def visitGraph[Node, Value](start: Node, next: Node => Set[Node], value: Node => Set[Value]): Set[Value] = {
+  /**
+   * This is an helper methods which visit an implicit graph, collecting values associated to nodes.
+   * @tparam Node the type for nodes of the graph
+   * @tparam Value the values associated to nodes
+   * @param start starting node
+   * @param children maps each node to its children
+   * @param values maps each node to a set of values
+   */
+  protected def visitGraph[Node, Value](start: Node, children: Node => Set[Node], values: Node => Set[Value]): Set[Value] = {
     val worklist = collection.mutable.Queue[Node](start)
     val result = collection.mutable.Set[Value]()
     while (!worklist.isEmpty) {
       val current = worklist.dequeue()
-      result ++= value(current)
-      worklist ++= next(current)
+      result ++= values(current)
+      worklist ++= children(current)
     }
     result.toSet
   }
@@ -71,8 +79,8 @@ trait ObjectModelHelper {
 
   def fields(t: Type): Set[Field] = visitGraph(t, parents, declaredFields)
 
-  def possibleFieldsOf(t: Type): Set[Field] = {
-    for { k <- descendants(t); if isConcrete(k); f <- fields(k) }
+  def possibleFields(t: Type): Set[Field] = {
+    for ( k <- descendants(t); if isConcrete(k); f <- fields(k) )
       yield f
   }
 
@@ -101,11 +109,11 @@ trait ObjectModelHelper {
     upperCrownHelper(ts, Set())
   }
 
-  def glbApprox(t1: Type, t2: Type): Option[Type] = glb.getOrElseUpdate((t1, t2), {
+  def concreteApprox(t1: Type, t2: Type): Option[Type] = glb.getOrElseUpdate((t1, t2), {
     if (lteq(t1, t2) && isConcrete(t1))
       Option(t1)
     else {
-      val glbs = upperCrown(children(t1) map { glbApprox(_, t2) } filter { _.isDefined } map { _.get })
+      val glbs = upperCrown(children(t1) map { concreteApprox(_, t2) } filter { _.isDefined } map { _.get })
       // Actually, we would need to remove elements from glbs which are subsumed by other elements.
       if (glbs.isEmpty)
         None
@@ -116,12 +124,31 @@ trait ObjectModelHelper {
     }
   })
 
-  def glbApprox(t: Type): Option[Type] = {
+  /**
+   * @inheritdoc
+   * It is  computed by iterating the binary glbApprox, but may be overriden for performance reasons.
+   */
+  def concreteApprox(ts: Iterable[Type]): Option[Type] = {
+
+    @tailrec
+    def glbhelper(ts: Iterable[Type], current: Option[Type]): Option[Type] = {
+      if (ts.isEmpty || current.isEmpty)
+        current
+      else
+        glbhelper(ts.tail, concreteApprox(current.get, ts.head))
+    }
+    if (ts.isEmpty)
+      None
+    else
+      glbhelper(ts, Option(ts.head))
+  }
+
+  def concreteApprox(t: Type): Option[Type] = {
     var subs = Set(t)
     var current = t
     do {
       current = subs.head
-      subs = upperCrown((children(current) filter isConcretizable) map { glbApprox(_).get })
+      subs = upperCrown((children(current) filter isConcretizable) map { concreteApprox(_).get })
     } while (subs.size == 1 && (!isConcrete(current)))
     if (isConcretizable(current))
       Option(current)
@@ -129,24 +156,8 @@ trait ObjectModelHelper {
       None
   }
 
-  def glbApprox(ts: Iterable[Type]): Option[Type] = {
-
-    @tailrec
-    def glbhelper(ts: Iterable[Type], current: Option[Type]): Option[Type] = {
-      if (ts.isEmpty || current.isEmpty)
-        current
-      else
-        glbhelper(ts.tail, glbApprox(current.get, ts.head))
-    }
-
-    if (ts.isEmpty)
-      None
-    else
-      glbhelper(ts, Option(ts.head))
-  }
-
-  def neededFieldsOf(t: Type): Set[Field] = {
-    val glb = glbApprox(t, t)
+  def neededFields(t: Type): Set[Field] = {
+    val glb = concreteApprox(t, t)
     if (glb.isEmpty) Set() else fields(glb.get)
   }
 
@@ -160,18 +171,18 @@ trait ObjectModelHelper {
       while (queue.nonEmpty) {
         val t1 = queue.dequeue
         if (isConcretizable(t1) && !isPrimitive(t1)) set += t1
-        for { f <- possibleFieldsOf(t1); t2 = typeOf(f); if !set.contains(t2) } queue.enqueue(t2)
-        for { elt <- getElementType(t1) } queue.enqueue(elt)
+        for { f <- possibleFields(t1); t2 = typeOf(f); if !set.contains(t2) } queue.enqueue(t2)
+        for { elt <- elementType(t1) } queue.enqueue(elt)
       }
       val result = set.toSet
       reachable(t) = result
       result
   }
 
-  def reachable(src: Type, tgt: Type) = reachablesFrom(src) exists { lteq(tgt, _) }
+  def isReachable(src: Type, tgt: Type) = reachablesFrom(src) exists { lteq(tgt, _) }
 
   def mayBeAliases(t1: Type, t2: Type): Boolean =
-    !isPrimitive(t1) && !isPrimitive(t2) && glbApprox(t1, t2).isDefined
+    !isPrimitive(t1) && !isPrimitive(t2) && concreteApprox(t1, t2).isDefined
 
   def mayShare(t1: Type, t2: Type): Boolean = {
     val doShare = sharing.get((t1, t2)) orElse sharing.get((t2, t1))

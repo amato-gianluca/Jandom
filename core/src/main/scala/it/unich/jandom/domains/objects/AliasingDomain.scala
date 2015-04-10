@@ -207,7 +207,7 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
      */
     private[objects] def nodeType(n: Node): om.Type = {
       assume(isFirstLevel(n))
-      om.glbApprox(for ((Some(`n`), t) <- labels zip types) yield t).get
+      om.concreteApprox(for ((Some(`n`), t) <- labels zip types) yield t).get
     }
 
     /**
@@ -216,7 +216,7 @@ class AliasingDomain[OM <: ObjectModel](val om: OM) extends ObjectDomain[OM] {
     private[objects] def completeNodeType(n: Node): Option[om.Type] = {
       val firstLevels = for ((Some(`n`), t) <- labels zip types) yield t
       val secondLevels = for ((_, span) <- edges; (f, `n`) <- span) yield om.typeOf(f)
-      om.glbApprox(firstLevels ++ secondLevels)
+      om.concreteApprox(firstLevels ++ secondLevels)
     }
 
     /**

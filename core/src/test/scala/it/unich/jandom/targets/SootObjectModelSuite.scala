@@ -63,14 +63,14 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
   val arrIface = ArrayType.v(interfaceList, 2)
   val arrIface2 = ArrayType.v(interfaceList2, 2)
 
-  val someTypes = Seq(klassA, klassB, klassListA, klassPair, klassS1, klassS2, klassS3, klassS4,
+  val someTypes = Table("type", klassA, klassB, klassListA, klassPair, klassS1, klassS2, klassS3, klassS4,
     klassS5, klassR3, interfaceList, interfaceList, interfaceList2, interfaceList3, interfaceOther,
     interfaceInstantiable, klassAbs, klassAbs1, klassNoAbs1, klassAbs2, klassK,
     primitiveInt, primitiveByte, arrPrimitive, arrS3dim2, arrS3dim1, arrS1dim1, arrIface, arrIface2,
     klassListA2, klassListA3)
 
   val om = new SootObjectModel(scene)
-  
+
   import om._
 
   describe("The subtype relation") {
@@ -88,12 +88,12 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
     }
   }
 
-  describe("The glbApprox operation") {
+  describe("The concreteApprox operation") {
     it("passes some specific test for SootObjectModel") {
-      assert(glbApprox(interfaceList3, klassListA).isDefined)
-      assert(glbApprox(interfaceList, interfaceOther) === Some(klassListA3 ))
-      assert(glbApprox(Seq(interfaceList, interfaceOther, klassListA)) === Some(klassListA3))
-      assert(glbApprox(Seq(interfaceList, klassA, interfaceOther, klassListA)) === None)
+      assert(concreteApprox(interfaceList3, klassListA).isDefined)
+      assert(concreteApprox(interfaceList, interfaceOther) === Some(klassListA3 ))
+      assert(concreteApprox(Seq(interfaceList, interfaceOther, klassListA)) === Some(klassListA3))
+      assert(concreteApprox(Seq(interfaceList, klassA, interfaceOther, klassListA)) === None)
     }
   }
 
@@ -116,15 +116,15 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
   describe("The possible fields of a class/interface") {
     it("is empty on primitive types") {
       for { t <- someTypes; if isPrimitive(t) } {
-        assert(possibleFieldsOf(t).isEmpty)
+        assert(possibleFields(t).isEmpty)
       }
     }
     it("passes some specific test for SootObjectModel") {
       val f1 = klassS2.getSootClass().getField("f1", klassA)
       val f2 = klassS3.getSootClass().getField("f2", klassB)
       val l = klassS4.getSootClass().getField("l", klassListA)
-      assert(possibleFieldsOf(klassS3) === Set(f1, f2))
-      assert(possibleFieldsOf(klassS2) === Set(f1, f2, l))
+      assert(possibleFields(klassS3) === Set(f1, f2))
+      assert(possibleFields(klassS2) === Set(f1, f2, l))
     }
   }
 
@@ -141,18 +141,18 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
 
   describe("Type reachability") {
     it("passes some specific test for SootObjectModel") {
-      assert(!reachable(interfaceList2, interfaceList2))
-      assert(reachable(klassA, klassA))
-      assert(!reachable(klassA, klassB))
-      assert(reachable(klassListA, klassA))
-      assert(reachable(klassR3, klassS5))
-      assert(!reachable(klassR3, klassS4))
-      assert(reachable(klassR3, klassS3))
-      assert(!reachable(klassR3, klassS2))
+      assert(!isReachable(interfaceList2, interfaceList2))
+      assert(isReachable(klassA, klassA))
+      assert(!isReachable(klassA, klassB))
+      assert(isReachable(klassListA, klassA))
+      assert(isReachable(klassR3, klassS5))
+      assert(!isReachable(klassR3, klassS4))
+      assert(isReachable(klassR3, klassS3))
+      assert(!isReachable(klassR3, klassS2))
     }
   }
 
-  describe("Type sharing") {   
+  describe("Type sharing") {
     it("passes some specific test for SootObjectModel") {
       assert(mayShare(klassA, klassA))
       assert(!mayShare(klassA, klassB))
@@ -165,4 +165,3 @@ class SootObjectModelSuite extends FunSpec with ObjectModelSuite with SootTests 
     }
   }
 }
-

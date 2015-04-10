@@ -19,8 +19,7 @@
 package it.unich.jandom.objectmodels
 
 import org.scalatest.FunSpec
-import org.scalacheck._
-import Arbitrary._
+import org.scalatest.prop.TableFor1
 
 /**
  * A test for the TestObjectModel.
@@ -28,5 +27,5 @@ import Arbitrary._
  */
 class TestObjectModelSuite extends FunSpec with ObjectModelSuite {
   val om = TestObjectModel
-  val someTypes = Seq(om.tsuper, om.tmiddle, om.tsub, om.tother, om.tprim)  
+  val someTypes = Table[om.Type]("type", om.tsuper, om.tmiddle, om.tsub, om.tother, om.tprim)
 }

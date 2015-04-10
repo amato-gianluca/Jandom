@@ -27,5 +27,5 @@ import org.scalacheck.Gen
  */
 class TrivialObjectModelSuite extends FunSpec with ObjectModelSuite {
   val om = TrivialObjectModel
-  val someTypes = Seq( () )  
+  val someTypes = Table("type", ())
 }

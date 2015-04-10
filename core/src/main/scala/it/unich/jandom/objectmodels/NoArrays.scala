@@ -19,11 +19,11 @@
 package it.unich.jandom.objectmodels
 
 /**
- * This is a trait for object models without arrays.
+ * This is an helper trait for object models without arrays.
  * @author Gianluca Amato <gamato@unich.it>
  */
 trait NoArrays {
   this: ObjectModel =>
   def isArray(t: Type) = false
-  def getElementType(t: Type) = None
+  def elementType(t: Type) = None
 }

@@ -243,4 +243,3 @@ trait ObjectDomainSuite extends CartesianFiberedDomainSuite with TableDrivenProp
     }
   }
 }
-

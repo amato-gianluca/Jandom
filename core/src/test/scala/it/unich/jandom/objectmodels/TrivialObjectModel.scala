@@ -33,8 +33,8 @@ object TrivialObjectModel extends TreeObjectModel with NoArrays with ObjectModel
   def children(t: Type) = Set()
   def isPrimitive(t: Type) = false
   def isConcrete(t: Type) = true
-  override def glbApprox(t1: Type, t2: Type) = Some(())
-  override def glbApprox(ts: Iterable[Type]) = if (ts.isEmpty) None else Some(())
+  override def concreteApprox(t1: Type, t2: Type) = Some(())
+  override def concreteApprox(ts: Iterable[Type]) = if (ts.isEmpty) None else Some(())
   override def mayShare(t1: Type, t2: Type) = true
   override def mayBeAliases(t1: Type, t2: Type) = true
 }

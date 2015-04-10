@@ -24,8 +24,8 @@ package it.unich.jandom.objectmodels
  * @author Gianluca Amato <gamato@unich.it>
  */
 
-trait TreeObjectModel extends ObjectModel { 
-  
+trait TreeObjectModel extends ObjectModel {
+
   /**
    * It determines the glb's of two types. It is only present at this point of the hierarchy because
    * it is easy to compute it from the ordering relation for tree hierarchies, not as much for
@@ -37,5 +37,5 @@ trait TreeObjectModel extends ObjectModel {
     else if (lteq(t2, t1))
       Option(t2)
     else None
-  }  
+  }
 }
