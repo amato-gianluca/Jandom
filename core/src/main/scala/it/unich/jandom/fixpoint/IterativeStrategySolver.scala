@@ -24,11 +24,12 @@ package it.unich.jandom.fixpoint
  */
 final class IterativeStrategySolver[EQS <: FiniteEquationSystem](val eqs: EQS) extends FixpointSolver[EQS] {
 
-  abstract class Params {
-    val strategy: IterativeStrategy[eqs.Unknown]
-    val boxes: eqs.BoxAssignment
-    val start: eqs.Assignment
+  case class Params (val boxes: eqs.BoxAssignment, val start: eqs.Assignment, val strategy: IterativeStrategy[eqs.Unknown]) extends WithStart with WithBoxes {
+     def withStart(newstart: eqs.Assignment) = this.copy(start = newstart)
+     def withBoxes(newboxes: eqs.BoxAssignment) = this.copy(boxes = newboxes)
   }
+
+  val defaultParams = Params(null,  null, IterativeStrategy())
 
   def apply(p: Params): eqs.Assignment = {
     import IterativeStrategy._

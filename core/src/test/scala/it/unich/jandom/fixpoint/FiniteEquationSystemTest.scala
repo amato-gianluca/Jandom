@@ -61,30 +61,20 @@ class FiniteEquationSystemTest extends FunSpec with PropertyChecks {
 
   val startRho: Int => Double = { (x: Int) => if (x == 3) 10.0 else 0.0 }
 
-  abstract class SimpleSolver[EQS <: EquationSystem] {
-    val solver: FixpointSolver[EQS]
-    def apply(boxes: solver.eqs.BoxAssignment, start: solver.eqs.Assignment): solver.eqs.Assignment
-  }
-
-  class RoundRobinSimpleSolver[EQS <: FiniteEquationSystem](val eqs: EQS) extends SimpleSolver[EQS] {
-     val solver = new RoundRobinSolver(eqs)
-     def apply(aboxes: solver.eqs.BoxAssignment, astart: solver.eqs.Assignment): solver.eqs.Assignment = {
-       val p =  solver.Params(aboxes, astart)
-       solver(p)
-     }
-  }
+  type SimpleSolver[EQS <: FiniteEquationSystem] = FixpointSolver[EQS] { type Params <: WithBoxes with WithStart }
 
   /**
    * Tests whether solving `eqs` equation system always returns a correct result. Should be used only for solvers which are
    * guaranteed to terminate with the given box assignment.
    */
-  def testCorrectness(simpleSolver: SimpleSolver[_ <: FiniteEquationSystem])(boxes: simpleSolver.solver.eqs.BoxAssignment)(implicit values: Arbitrary[simpleSolver.solver.eqs.Value]) = {
-    import simpleSolver.solver._
-    val startRhosList = Gen.listOfN(simpleSolver.solver.eqs.unknowns.size, values.arbitrary)
+  def testCorrectness(solver: SimpleSolver[_ <: FiniteEquationSystem])(boxes: solver.eqs.BoxAssignment)(implicit values: Arbitrary[solver.eqs.Value]) = {
+    import solver.eqs
+    val startRhosList = Gen.listOfN(eqs.unknowns.size, values.arbitrary)
     val startRhos = startRhosList map { (l) => HashMap(eqs.unknowns zip l: _*) }
     it("always returns a box solution") {
       forAll(startRhos) { startEnv =>
-        val finalEnv = simpleSolver(boxes,startEnv)
+        val params = solver.defaultParams.withBoxes(boxes).withStart(startEnv)
+        val finalEnv = solver(params)
         for (x <- eqs.unknowns)
           assert(finalEnv(x) === boxes(x)(finalEnv(x), eqs(finalEnv)(x)))
       }
@@ -95,10 +85,11 @@ class FiniteEquationSystemTest extends FunSpec with PropertyChecks {
    * Test solvers for the `simpleEqs` equation system when starting from the initial
    * assignment `startRho`.
    */
-  def testExpectedResult(simpleSolver: SimpleSolver[simpleEqs.type]) {
-    describe(s"${simpleSolver.solver.name} with last") {
+  def testExpectedResult(solver: SimpleSolver[simpleEqs.type]) {
+    describe(s"${solver.name} with last") {
       it("gives the expected result starting from startRho") {
-        val finalRho = simpleSolver(allLast,startRho)
+        val params = solver.defaultParams.withBoxes(allLast).withStart(startRho)
+        val finalRho = solver(params)
         assert(finalRho(0) === 0.0)
         assert(finalRho(1) === 10.0)
         assert(finalRho(2) === 11.0)
@@ -106,9 +97,10 @@ class FiniteEquationSystemTest extends FunSpec with PropertyChecks {
       }
     }
 
-    describe(s"${simpleSolver.solver.name} with max") {
+    describe(s"${solver.name} with max") {
       it("gives the expected result starting from startRho") {
-        val finalRho = simpleSolver(allMax,startRho)
+        val params = solver.defaultParams.withBoxes(allLast).withStart(startRho)
+        val finalRho = solver(params)
         assert(finalRho(0) === 0.0)
         assert(finalRho(1) === 10.0)
         assert(finalRho(2) === 11.0)
@@ -116,9 +108,10 @@ class FiniteEquationSystemTest extends FunSpec with PropertyChecks {
       }
     }
 
-    describe(s"${simpleSolver.solver.name} with widening") {
+    describe(s"${solver.name} with widening") {
       it("gives the expected result starting from startRho") {
-        val finalRho = simpleSolver(allWiden,startRho)
+       val params = solver.defaultParams.withBoxes(allLast).withStart(startRho)
+        val finalRho = solver(params)
         assert(finalRho(0) === 0.0)
         assert(finalRho(1) === Double.PositiveInfinity)
         assert(finalRho(2) === Double.PositiveInfinity)
@@ -126,12 +119,12 @@ class FiniteEquationSystemTest extends FunSpec with PropertyChecks {
       }
     }
 
-    describe(s"${simpleSolver.solver.name} with widening") {
-      testCorrectness(simpleSolver)(allWiden)
+    describe(s"${solver.name} with widening") {
+      testCorrectness(solver)(allWiden)
     }
   }
 
-  testExpectedResult(new RoundRobinSimpleSolver(simpleEqs))
-  //testExpectedResult(WorkListSolver(simpleEqs))
+  testExpectedResult(RoundRobinSolver(simpleEqs))
+  testExpectedResult(WorkListSolver(simpleEqs))
   //testExpectedResult(IterativeStrategySolver(simpleEqs)))
 }

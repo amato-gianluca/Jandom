@@ -26,9 +26,12 @@ final class RoundRobinSolver[EQS <: FiniteEquationSystem](val eqs: EQS) extends 
 
   val name = "RoundRobin solver"
 
-  case class Params (val boxes: eqs.BoxAssignment, val start: eqs.Assignment) extends StartVal[Params] {
+  case class Params (val boxes: eqs.BoxAssignment, val start: eqs.Assignment) extends WithStart with WithBoxes {
      def withStart(newstart: eqs.Assignment) = this.copy(start = newstart)
+     def withBoxes(newboxes: eqs.BoxAssignment) = this.copy(boxes = newboxes)
   }
+
+  val defaultParams = Params(null,  null)
 
   def apply(p: Params): eqs.Assignment = {
     import p._

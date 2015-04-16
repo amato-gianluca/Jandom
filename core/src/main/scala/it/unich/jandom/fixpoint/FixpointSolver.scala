@@ -35,16 +35,22 @@ trait FixpointSolver[EQS <: EquationSystem] {
    */
   val name: String
 
-  trait StartVal[P] {
-    this: P =>
+  trait WithBoxes {
+    val boxes: eqs.BoxAssignment
+    def withBoxes(newboxes: eqs.BoxAssignment): Params
+  }
+
+ trait WithStart {
     val start: eqs.Assignment
-    def withStart(s: eqs.Assignment): P
+    def withStart(newstart: eqs.Assignment): Params
   }
 
   /**
    * Type of parameters needed by this solver.
    */
   type Params
+
+  val defaultParams: Params
 
   /**
    * The solver algorithm.
