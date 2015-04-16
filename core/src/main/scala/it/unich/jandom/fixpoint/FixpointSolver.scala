@@ -19,23 +19,36 @@
 package it.unich.jandom.fixpoint
 
 /**
- * This is the common trait of all equation solvers.
+ * This is the common trait of all equation solvers. It determines
+ * a fixpoint of an equation system.
  * @tparam EQS the type of equation systems supported by this solver
  */
 trait FixpointSolver[EQS <: EquationSystem] {
 
   /**
-   * The particular equation system this solver deals with.
+   * The equation system to solve
    */
   val eqs: EQS
-
-  /**
-   * The solver algorithm.
-   */
-  def apply(start: eqs.Assignment, boxes: eqs.Unknown => eqs.Box): eqs.Assignment
 
   /**
    * The name of the solver.
    */
   val name: String
+
+  trait StartVal[P] {
+    this: P =>
+    val start: eqs.Assignment
+    def withStart(s: eqs.Assignment): P
+  }
+
+  /**
+   * Type of parameters needed by this solver.
+   */
+  type Params
+
+  /**
+   * The solver algorithm.
+   */
+  def apply(params: Params): eqs.Assignment
+
 }

@@ -44,6 +44,11 @@ trait EquationSystem {
   type Box = (Value, Value) => Value
 
   /**
+   * An assignment of a different box for each unknown
+   */
+  type BoxAssignment = Unknown => Box
+
+  /**
    * The actual equation system.
    */
   def apply(rho: Assignment): Assignment

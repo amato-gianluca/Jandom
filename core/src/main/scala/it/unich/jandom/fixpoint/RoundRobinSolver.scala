@@ -23,14 +23,23 @@ package it.unich.jandom.fixpoint
  * @param eqs the equation system to solve
  */
 final class RoundRobinSolver[EQS <: FiniteEquationSystem](val eqs: EQS) extends FixpointSolver[EQS] {
-  def apply(start: eqs.Assignment, boxes: eqs.Unknown => eqs.Box): eqs.Assignment = {
+
+  val name = "RoundRobin solver"
+
+  case class Params (val boxes: eqs.BoxAssignment, val start: eqs.Assignment) extends StartVal[Params] {
+     def withStart(newstart: eqs.Assignment) = this.copy(start = newstart)
+  }
+
+  def apply(p: Params): eqs.Assignment = {
+    import p._
+
     val current: collection.mutable.HashMap[eqs.Unknown, eqs.Value] =
-       (for ( x <- eqs.unknowns) yield (x -> start(x))) (collection.breakOut)
+       (for ( x <- eqs.unknowns ) yield (x -> p.start(x))) (collection.breakOut)
     var dirty = true
     while (dirty) {
       dirty = false
       for (x <- eqs.unknowns) {
-        val newval = boxes(x)(current(x), eqs(current)(x))
+        val newval = p.boxes(x)(current(x), eqs(current)(x))
         if (newval != current(x)) {
           current(x) = newval
           dirty = true
@@ -39,13 +48,12 @@ final class RoundRobinSolver[EQS <: FiniteEquationSystem](val eqs: EQS) extends 
     }
     current
   }
-  val name = "RoundRobin"
 }
 
 object RoundRobinSolver {
   /**
-   * Returns a solver for an equation system.
+   * Returns a round robin solver for an equation system.
    * @param eqs the equation system to solve.
    */
-  def apply(eqs: FiniteEquationSystem) = new RoundRobinSolver[eqs.type](eqs)
+  def apply(eqs: FiniteEquationSystem) = new WorkListSolver[eqs.type](eqs)
 }

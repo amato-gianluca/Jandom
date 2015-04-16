@@ -24,7 +24,16 @@ package it.unich.jandom.fixpoint
  */
 final class WorkListSolver[EQS <: FiniteEquationSystem](val eqs: EQS) extends FixpointSolver[EQS] {
 
-  def apply(start: eqs.Assignment, boxes: eqs.Unknown => eqs.Box): eqs.Assignment = {
+  val name = "WorkList solver"
+
+  abstract class Params {
+     val boxes: eqs.BoxAssignment
+     val start: eqs.Assignment
+  }
+
+  def apply(p: Params): eqs.Assignment = {
+    import p._
+
     val current: collection.mutable.HashMap[eqs.Unknown, eqs.Value] =
        (for ( x <- eqs.unknowns) yield (x -> start(x))) (collection.breakOut)
     var workList = scala.collection.mutable.Queue[eqs.Unknown](eqs.unknowns: _*)
@@ -38,7 +47,7 @@ final class WorkListSolver[EQS <: FiniteEquationSystem](val eqs: EQS) extends Fi
     }
     current
   }
-  val name = "WorkList"
+
 }
 
 object WorkListSolver {
