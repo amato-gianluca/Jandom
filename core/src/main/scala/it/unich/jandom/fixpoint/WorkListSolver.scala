@@ -18,6 +18,8 @@
 
 package it.unich.jandom.fixpoint
 
+import it.unich.jandom.utils.parametermap._
+
 /**
  * This solver solver a finite equation system with a work-list based method.
  * @param eqs the equation system to solve
@@ -26,15 +28,11 @@ final class WorkListSolver[EQS <: FiniteEquationSystem](val eqs: EQS) extends Fi
 
   val name = "WorkList solver"
 
-  case class Params (val boxes: eqs.BoxAssignment, val start: eqs.Assignment) extends WithStart with WithBoxes {
-     def withStart(newstart: eqs.Assignment) = this.copy(start = newstart)
-     def withBoxes(newboxes: eqs.BoxAssignment) = this.copy(boxes = newboxes)
-  }
+  type Params = PTag[start_p.type] with PTag[boxes_p.type]
 
-  val defaultParams = Params(null,  null)
-
-  def apply(p: Params): eqs.Assignment = {
-    import p._
+  def apply(p: PMap with Params): eqs.Assignment = {
+    val start = p(start_p)
+    val boxes = p(boxes_p)
 
     val current: collection.mutable.HashMap[eqs.Unknown, eqs.Value] =
        (for ( x <- eqs.unknowns) yield (x -> start(x))) (collection.breakOut)

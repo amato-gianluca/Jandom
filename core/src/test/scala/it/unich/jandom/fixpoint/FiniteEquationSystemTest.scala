@@ -23,6 +23,7 @@ import org.scalatest.prop.PropertyChecks
 import org.scalacheck.Gen
 import org.scalacheck.Arbitrary
 import scala.collection.immutable.HashMap
+import it.unich.jandom.utils.parametermap._
 
 /**
  * Test solvers for finite equation systems.
@@ -61,19 +62,21 @@ class FiniteEquationSystemTest extends FunSpec with PropertyChecks {
 
   val startRho: Int => Double = { (x: Int) => if (x == 3) 10.0 else 0.0 }
 
-  type SimpleSolver[EQS <: FiniteEquationSystem] = FixpointSolver[EQS] { type Params <: WithBoxes with WithStart }
+  type SimpleSolver[S, EQS <: FiniteEquationSystem] = FixpointSolver[EQS] {
+    type Params >: PTag[start_p.type] with PTag[boxes_p.type] with S <:  PTag[start_p.type] with PTag[boxes_p.type] with S
+  }
 
   /**
    * Tests whether solving `eqs` equation system always returns a correct result. Should be used only for solvers which are
    * guaranteed to terminate with the given box assignment.
    */
-  def testCorrectness(solver: SimpleSolver[_ <: FiniteEquationSystem])(boxes: solver.eqs.BoxAssignment)(implicit values: Arbitrary[solver.eqs.Value]) = {
-    import solver.eqs
+  def testCorrectness[S](solver: SimpleSolver[S, _ <: FiniteEquationSystem])(initialParams: S with PMap, boxes: solver.eqs.BoxAssignment)(implicit values: Arbitrary[solver.eqs.Value]) {
+    import solver._
     val startRhosList = Gen.listOfN(eqs.unknowns.size, values.arbitrary)
     val startRhos = startRhosList map { (l) => HashMap(eqs.unknowns zip l: _*) }
     it("always returns a box solution") {
       forAll(startRhos) { startEnv =>
-        val params = solver.defaultParams.withBoxes(boxes).withStart(startEnv)
+        val params = initialParams + (start_p --> startEnv) + (boxes_p --> boxes)
         val finalEnv = solver(params)
         for (x <- eqs.unknowns)
           assert(finalEnv(x) === boxes(x)(finalEnv(x), eqs(finalEnv)(x)))
@@ -85,10 +88,11 @@ class FiniteEquationSystemTest extends FunSpec with PropertyChecks {
    * Test solvers for the `simpleEqs` equation system when starting from the initial
    * assignment `startRho`.
    */
-  def testExpectedResult(solver: SimpleSolver[simpleEqs.type]) {
+  def testExpectedResult[S](solver: SimpleSolver[S, simpleEqs.type], initialParams: PMap with S) {
+    import solver._
     describe(s"${solver.name} with last") {
       it("gives the expected result starting from startRho") {
-        val params = solver.defaultParams.withBoxes(allLast).withStart(startRho)
+        val params = initialParams + (start_p --> startRho) + (boxes_p --> allLast)
         val finalRho = solver(params)
         assert(finalRho(0) === 0.0)
         assert(finalRho(1) === 10.0)
@@ -99,7 +103,7 @@ class FiniteEquationSystemTest extends FunSpec with PropertyChecks {
 
     describe(s"${solver.name} with max") {
       it("gives the expected result starting from startRho") {
-        val params = solver.defaultParams.withBoxes(allLast).withStart(startRho)
+        val params = initialParams + (start_p --> startRho) + (boxes_p --> allMax)
         val finalRho = solver(params)
         assert(finalRho(0) === 0.0)
         assert(finalRho(1) === 10.0)
@@ -110,7 +114,7 @@ class FiniteEquationSystemTest extends FunSpec with PropertyChecks {
 
     describe(s"${solver.name} with widening") {
       it("gives the expected result starting from startRho") {
-       val params = solver.defaultParams.withBoxes(allLast).withStart(startRho)
+        val params = initialParams + (start_p --> startRho) + (boxes_p --> allWiden)
         val finalRho = solver(params)
         assert(finalRho(0) === 0.0)
         assert(finalRho(1) === Double.PositiveInfinity)
@@ -120,11 +124,12 @@ class FiniteEquationSystemTest extends FunSpec with PropertyChecks {
     }
 
     describe(s"${solver.name} with widening") {
-      testCorrectness(solver)(allWiden)
+      testCorrectness[S](solver)(initialParams, allWiden)
     }
   }
 
-  testExpectedResult(RoundRobinSolver(simpleEqs))
-  testExpectedResult(WorkListSolver(simpleEqs))
-  //testExpectedResult(IterativeStrategySolver(simpleEqs)))
+  testExpectedResult(RoundRobinSolver(simpleEqs),PMap.empty)
+  testExpectedResult(WorkListSolver(simpleEqs),PMap.empty)
+  val s = IterativeStrategySolver(simpleEqs)
+  testExpectedResult[PTag[s.strategy_p.type]](s, PMap.empty + (s.strategy_p --> simpleEqsStrategy))
 }

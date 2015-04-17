@@ -18,6 +18,8 @@
 
 package it.unich.jandom.fixpoint
 
+import it.unich.jandom.utils.parametermap._
+
 /**
  * This solver solves a finite equation system with the round robin method.
  * @param eqs the equation system to solve
@@ -26,23 +28,19 @@ final class RoundRobinSolver[EQS <: FiniteEquationSystem](val eqs: EQS) extends 
 
   val name = "RoundRobin solver"
 
-  case class Params (val boxes: eqs.BoxAssignment, val start: eqs.Assignment) extends WithStart with WithBoxes {
-     def withStart(newstart: eqs.Assignment) = this.copy(start = newstart)
-     def withBoxes(newboxes: eqs.BoxAssignment) = this.copy(boxes = newboxes)
-  }
+  type Params = PTag[start_p.type] with PTag[boxes_p.type]
 
-  val defaultParams = Params(null,  null)
-
-  def apply(p: Params): eqs.Assignment = {
-    import p._
+  def apply(p: PMap with Params): eqs.Assignment = {
+    val start = p(start_p)
+    val boxes = p(boxes_p)
 
     val current: collection.mutable.HashMap[eqs.Unknown, eqs.Value] =
-       (for ( x <- eqs.unknowns ) yield (x -> p.start(x))) (collection.breakOut)
+       (for ( x <- eqs.unknowns ) yield (x -> start(x))) (collection.breakOut)
     var dirty = true
     while (dirty) {
       dirty = false
       for (x <- eqs.unknowns) {
-        val newval = p.boxes(x)(current(x), eqs(current)(x))
+        val newval = boxes(x)(current(x), eqs(current)(x))
         if (newval != current(x)) {
           current(x) = newval
           dirty = true
@@ -58,5 +56,5 @@ object RoundRobinSolver {
    * Returns a round robin solver for an equation system.
    * @param eqs the equation system to solve.
    */
-  def apply(eqs: FiniteEquationSystem) = new WorkListSolver[eqs.type](eqs)
+  def apply(eqs: FiniteEquationSystem) = new RoundRobinSolver[eqs.type](eqs)
 }

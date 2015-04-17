@@ -18,6 +18,8 @@
 
 package it.unich.jandom.fixpoint
 
+import it.unich.jandom.utils.parametermap._
+
 /**
  * This is the common trait of all equation solvers. It determines
  * a fixpoint of an equation system.
@@ -35,26 +37,18 @@ trait FixpointSolver[EQS <: EquationSystem] {
    */
   val name: String
 
-  trait WithBoxes {
-    val boxes: eqs.BoxAssignment
-    def withBoxes(newboxes: eqs.BoxAssignment): Params
-  }
-
- trait WithStart {
-    val start: eqs.Assignment
-    def withStart(newstart: eqs.Assignment): Params
-  }
-
   /**
    * Type of parameters needed by this solver.
    */
   type Params
 
-  val defaultParams: Params
+  val start_p = Parameter[eqs.Assignment]
+
+  val boxes_p = Parameter[eqs.BoxAssignment]
 
   /**
    * The solver algorithm.
    */
-  def apply(params: Params): eqs.Assignment
+  def apply(params: PMap with Params): eqs.Assignment
 
 }

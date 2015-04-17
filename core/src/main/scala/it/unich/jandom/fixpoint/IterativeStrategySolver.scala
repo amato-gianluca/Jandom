@@ -18,22 +18,25 @@
 
 package it.unich.jandom.fixpoint
 
+import it.unich.jandom.utils.parametermap._
+
 /**
  * A solver for finite equation systems based on iterative strategies.
  * @param eqs the equation system to solve
  */
 final class IterativeStrategySolver[EQS <: FiniteEquationSystem](val eqs: EQS) extends FixpointSolver[EQS] {
 
-  case class Params (val boxes: eqs.BoxAssignment, val start: eqs.Assignment, val strategy: IterativeStrategy[eqs.Unknown]) extends WithStart with WithBoxes {
-     def withStart(newstart: eqs.Assignment) = this.copy(start = newstart)
-     def withBoxes(newboxes: eqs.BoxAssignment) = this.copy(boxes = newboxes)
-  }
+  val strategy_p = Parameter[IterativeStrategy[eqs.Unknown]]
 
-  val defaultParams = Params(null,  null, IterativeStrategy())
+  type Params =  PTag[start_p.type] with PTag[boxes_p.type] with PTag[strategy_p.type]
 
-  def apply(p: Params): eqs.Assignment = {
+  def apply(p: PMap with Params): eqs.Assignment = {
+
     import IterativeStrategy._
-    import p._
+
+    val start = p(start_p)
+    val boxes = p(boxes_p)
+    val strategy = p(strategy_p)
 
     val current: collection.mutable.HashMap[eqs.Unknown, eqs.Value] = (for (x <- eqs.unknowns) yield (x -> start(x)))(collection.breakOut)
     val stack = collection.mutable.Stack.empty[Int]
@@ -79,5 +82,5 @@ object IterativeStrategySolver {
    * @param eqs the equation system to solve.
    * @param a_strategy the iterative strategy to use.
    */
-  def apply(eqs: FiniteEquationSystem)(a_strategy: IterativeStrategy[eqs.Unknown]) = new IterativeStrategySolver[eqs.type](eqs)
+  def apply(eqs: FiniteEquationSystem) = new IterativeStrategySolver[eqs.type](eqs)
 }
