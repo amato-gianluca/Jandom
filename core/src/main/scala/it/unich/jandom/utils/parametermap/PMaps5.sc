@@ -12,12 +12,12 @@ object PMaps5sc {
   val y = (B -> "pippo") :: (C -> 5) :: PNil      //> y  : it.unich.jandom.utils.parametermap.PMaps5.PCons[PMaps5sc.B.type,it.unic
                                                   //| h.jandom.utils.parametermap.PMaps5.::[PMaps5sc.C.type,it.unich.jandom.utils.
                                                   //| parametermap.PMaps5.PNil]] = it.unich.jandom.utils.parametermap.PMaps5$PCons
-                                                  //| @37611a05
+                                                  //| @14c7b5e7
 
   val x = (A -> 3) :: y                           //> x  : it.unich.jandom.utils.parametermap.PMaps5.PCons[PMaps5sc.A.type,it.unic
                                                   //| h.jandom.utils.parametermap.PMaps5.::[PMaps5sc.B.type,it.unich.jandom.utils.
                                                   //| parametermap.PMaps5.::[PMaps5sc.C.type,it.unich.jandom.utils.parametermap.PM
-                                                  //| aps5.PNil]]] = it.unich.jandom.utils.parametermap.PMaps5$PCons@6679fcae
+                                                  //| aps5.PNil]]] = it.unich.jandom.utils.parametermap.PMaps5$PCons@2cf48a01
   y(B)                                            //> res0: PMaps5sc.B.Value = pippo
   y(C)                                            //> res1: PMaps5sc.C.Value = 5
   x(A)                                            //> res2: PMaps5sc.A.Value = 3
@@ -38,10 +38,9 @@ object PMaps5sc {
                                                   //| ps5sc.C.Value
 
   f(y)                                            //> res6: PMaps5sc.C.Value = 5
-  f(conv2(x)) // does not work                    //> res7: PMaps5sc.C.Value = 5
-  f(x)                                            //> res8: PMaps5sc.C.Value = 5
+  f(x)                                            //> res7: PMaps5sc.C.Value = 5
 
-  ff(y)                                           //> res9: PMaps5sc.C.Value = 5
-  ff(x)                                           //> res10: PMaps5sc.C.Value = 5
+  ff(y)                                           //> res8: PMaps5sc.C.Value = 5
+  ff(x)                                           //> res9: PMaps5sc.C.Value = 5
 
 }

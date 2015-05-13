@@ -1,7 +1,7 @@
 package it.unich.jandom.utils.parametermap
 
 object TLists {
-  sealed trait TList
+  sealed abstract class TList
   object TNil extends TList
   final class TCons[H, T <: TList] extends TList
 

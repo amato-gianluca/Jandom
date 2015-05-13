@@ -5,26 +5,30 @@ import scala.language.implicitConversions
 import TLists._
 
 object PMaps6 {
-  
-  trait Parameter {
+
+  abstract class Parameter {
+    this: Singleton =>
     type Value
-    def ->(v: Value): (this.type, Value) = (this, v)
+    def -->(v: Value): (this.type, Value) = (this, v)
   }
 
   sealed class PMap(val delegate: Map[Parameter, Any]) {
     outer =>
     type PList <: TList
-    
-    @implicitNotFound("The parameter map has no element of type ${P}")
-    def apply[P <: Parameter](p: P)(implicit ev: Contains[P, PList]) = delegate(p).asInstanceOf[P#Value]
-    def get[P <: Parameter](p: P) = delegate.get(p).asInstanceOf[Option[P#Value]]
+
+    @implicitNotFound("This parameter map has no such element")
+    def apply(p: Parameter)(implicit ev: Contains[p.type, PList]) = delegate(p).asInstanceOf[p.Value]
+    def get(p: Parameter) = delegate.get(p).asInstanceOf[Option[p.Value]]
+    def +:[P <: Parameter](pv: (P, P#Value)) = new PMap(delegate + pv) { type PList = TCons[P, outer.PList] }
   }
-  
-  val PNil = new PMap(Map.empty) { type PList = TNil }
-  type PNil = PNil.type
-  
-  def cons[P <: Parameter, T <: PMap](pkey: (P, P#Value), pmap: T) = new PMap(pmap.delegate + pkey) { type PList = TCons[P,T#PList] }
-  type ::[H <: Parameter, T <: PMap] = PMap { type PList = TCons[H,T#PList] }
-    
-  implicit def conv[S <: PMap, T <: PMap](m: S)(implicit ev: SubSet[T#PList, S#PList]): T = m.asInstanceOf[T]
+
+  object PMap {
+    val empty: PNil = new PMap(Map.empty) { type PList = TNil }
+  }
+
+  type PNil = PMap { type PList = TNil }
+  type +:[H <: Parameter, T <: PMap] = PMap { type PList = TCons[H, T#PList] }
+
+  implicit def conv1[S <: PMap](m: S) = m.asInstanceOf[PNil]
+  implicit def conv2[S <: PMap, H <: Parameter, T <: TList](m: PMap)(implicit ev: Contains[H, m.PList], ev2: SubSet[T, m.PList]) = m.asInstanceOf[PMap { type PList = TCons[H, T] }]
 }
