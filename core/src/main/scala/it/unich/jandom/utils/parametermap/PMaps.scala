@@ -10,7 +10,7 @@ object PMaps {
     def ->(v: Value): (this.type, Value) = (this, v)
   }
 
-  sealed trait PMap {}
+  sealed trait PMap
 
   final case object PNil extends PMap {
     // do not move this in the PMap trait!

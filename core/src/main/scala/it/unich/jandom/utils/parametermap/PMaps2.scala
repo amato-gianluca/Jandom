@@ -5,6 +5,7 @@ import scala.language.implicitConversions
 import TLists._
 
 object PMaps2 {
+  
   trait Parameter {
     type Value
     def ->(v: Value): (this.type, Value) = (this, v)
@@ -33,5 +34,5 @@ object PMaps2 {
   type PNil = PNil.type
   type ::[P <: Parameter, T <: PMap] = PCons[P, T]
 
-  implicit def conv[S <: PMap, T <: PMap](m: S)(implicit ev: SubSet[T#PList, S#PList]): T = m.asInstanceOf[T]
+  implicit def conv[S <: PMap, T <: PMap](m: S)(implicit ev: SubSet[T#PList, S#PList]): T = m.asInstanceOf[T] 
 }
