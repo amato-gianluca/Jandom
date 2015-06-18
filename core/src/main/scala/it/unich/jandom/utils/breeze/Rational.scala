@@ -8,6 +8,7 @@ import breeze.linalg._
 import breeze.linalg.operators._
 import breeze.linalg.support.CanTraverseValues
 import breeze.linalg.support.CanTraverseValues.ValuesVisitor
+import java.security.InvalidParameterException
 
 class Rational(val numer: Int, val denom: Int) extends Ordered[Rational] {
 
@@ -82,6 +83,38 @@ object Rational {
   private def gcd(x: Int, y: Int): Int =
     if (y == 0) Math.abs(x) else gcd(y, x % y)
 
+  @tailrec
+  private def gcd(x: Long, y: Long): Long =
+    if (y == 0) Math.abs(x) else gcd(y, x % y)
+
+  @tailrec
+  private def gcd(x: BigInt, y: BigInt): BigInt =
+    if (y == 0) x.abs else gcd(y, x % y)
+
+  def apply(initialNumer: BigInt, initialDenom: BigInt): Rational = {
+    val thisGcd = gcd(initialNumer, initialDenom)
+    val numer = (if (initialDenom < 0) -initialNumer else initialNumer) / thisGcd
+    val denom = if (numer == 0) BigInt(1) else initialDenom.abs / thisGcd
+    if (numer.isValidInt && denom.isValidInt)
+      new Rational(numer.toInt, denom.toInt)
+    else {
+      println(numer)
+      println(denom)
+      throw new IllegalArgumentException("Cannot represent this number")
+    }
+
+  }
+
+  def apply(initialNumer: Long, initialDenom: Long): Rational = {
+    val thisGcd = gcd(initialNumer, initialDenom)
+    val numer = (if (initialDenom < 0) -initialNumer else initialNumer) / thisGcd
+    val denom = if (numer == 0) 1 else Math.abs(initialDenom) / thisGcd
+    if (numer.isValidInt && denom.isValidInt)
+      new Rational(numer.toInt, denom.toInt)
+    else
+      throw new IllegalArgumentException("Cannot represent this number")
+  }
+
   def apply(initialNumer: Int, initialDenom: Int): Rational = {
     require(initialDenom != 0, "denominator must be nonzero")
     val thisGcd = gcd(initialNumer, initialDenom)
@@ -90,7 +123,29 @@ object Rational {
     new Rational(numer, denom)
   }
 
-  def apply(x: Double): Rational = ???
+  def apply(x: Double): Rational = {
+    if (x == 0)
+      Rational.zero
+    else if (x.isNaN)
+      throw new InvalidParameterException("Cannot convert NaN to Rational")
+    else if (x.isInfinity)
+      throw new InvalidParameterException("Cannot convert infinite numbers to Rational")
+    else {
+      val bits = java.lang.Double.doubleToLongBits(x)
+      val value = if ((bits >> 63) < 0) -(bits & 0x000FFFFFFFFFFFFFL | 0x0010000000000000L)
+      else (bits & 0x000FFFFFFFFFFFFFL | 0x0010000000000000L)
+      val exp = ((bits >> 52) & 0x7FF).toInt - 1075 // 1023 + 52
+      if (exp > 10) {
+        apply(BigInt(value) << exp, BigInt(1))
+      } else if (exp >= 0) {
+        apply(value << exp, 1L)
+      } else if (exp >= -52 && (~((-1L) << (-exp)) & value) == 0L) {
+        apply(value >> (-exp), 1L)
+      } else {
+        apply(BigInt(value), BigInt(1) << (-exp))
+      }
+    }
+  }
 
   implicit def apply(x: Int): Rational = new Rational(x, 1)
 
@@ -161,19 +216,19 @@ object Rational {
     }
 
   implicit object implOpSolveMatrixBy_DRR_DRR_eq_DRR
-    extends OpSolveMatrixBy.Impl2[DenseMatrix[Rational], DenseMatrix[Rational], DenseMatrix[Rational]] {
+      extends OpSolveMatrixBy.Impl2[DenseMatrix[Rational], DenseMatrix[Rational], DenseMatrix[Rational]] {
 
     def LUSolve(X: DenseMatrix[Rational], A: DenseMatrix[Rational]) = {
       var perm = (0 until A.rows).toArray
       for (i <- 0 until A.rows) {
-        val optPivot = (i until A.rows) find { p =>  A(perm(p), perm(i)) != Rational.zero }
+        val optPivot = (i until A.rows) find { p => A(perm(p), perm(i)) != Rational.zero }
         val pivotRow = optPivot.getOrElse(throw new MatrixSingularException())
         val tmp = perm(i)
         perm(i) = perm(pivotRow)
         perm(pivotRow) = tmp
         val pivot = A(perm(i), perm(i))
         for (j <- i + 1 until A.rows) {
-          val coeff = A(perm(j),perm(i)) / pivot
+          val coeff = A(perm(j), perm(i)) / pivot
           A(perm(j), ::) -= A(perm(i), ::) * coeff
           X(perm(j), ::) -= X(perm(i), ::) * coeff
         }
@@ -205,7 +260,7 @@ object Rational {
   }
 
   implicit object implOpSolveMatrixBy_DMR_DVR_eq_DVR
-    extends OpSolveMatrixBy.Impl2[DenseMatrix[Rational], DenseVector[Rational], DenseVector[Rational]] {
+      extends OpSolveMatrixBy.Impl2[DenseMatrix[Rational], DenseVector[Rational], DenseVector[Rational]] {
     override def apply(a: DenseMatrix[Rational], b: DenseVector[Rational]): DenseVector[Rational] = {
       val rv: DenseMatrix[Rational] = a \ new DenseMatrix[Rational](b.size, 1, b.data, b.offset, b.stride, true)
       new DenseVector[Rational](rv.data)
@@ -224,5 +279,4 @@ object Rational {
       }
     }
   }
-
 }
