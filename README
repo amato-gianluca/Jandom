@@ -11,3 +11,7 @@ If the PPL (Parma Polyhedra Library) is installed, it will be used to
 extend the available numerical domains. Jandom requies PPL 1.1 or
 later [http://bugseng.com/products/ppl/download/ftp/].
 
+=====
+
+This is an attempt to introduce Parallelotopes over Rational with an in-house
+implementation of the Rational type and using the Breeze library.
